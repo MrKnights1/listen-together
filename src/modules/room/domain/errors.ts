@@ -1,6 +1,10 @@
 /** Why a pasted link added nothing. */
 export type LinkRejectionCode =
-  "invalid_url" | "unsupported_url" | "playlist_not_found" | "provider_unavailable";
+  | "invalid_url"
+  | "unsupported_url"
+  | "playlist_not_found"
+  | "song_not_in_playlist"
+  | "provider_unavailable";
 
 export class LinkRejected extends Error {
   constructor(readonly code: LinkRejectionCode) {

@@ -217,7 +217,9 @@ describe("the room socket", () => {
     await ada.next("welcome");
     await bob.next("welcome");
 
-    ada.ws.send(JSON.stringify({ t: "cmd", id: "c1", op: { type: "add", url: "youtu.be/x" } }));
+    ada.ws.send(
+      JSON.stringify({ t: "cmd", id: "c1", op: { type: "add", url: "youtu.be/x", scope: "song" } }),
+    );
 
     const update = await bob.next("ev");
     expect(update.by).toBe(ADA.id);

@@ -1,5 +1,6 @@
 import type { ActivityEntry } from "@/modules/room/domain/activity.ts";
 import type { Person } from "@/modules/room/domain/Person.ts";
+import type { LinkScope } from "@/modules/room/domain/ports/TrackSource.ts";
 import type { RoomEvent } from "@/modules/room/domain/events.ts";
 import type { RepeatMode, RoomState } from "@/modules/room/domain/RoomState.ts";
 import type { TrackInfo } from "@/modules/room/domain/TrackInfo.ts";
@@ -38,7 +39,7 @@ export interface RoomSnapshot {
 }
 
 export type CommandOp =
-  | { type: "add"; url: string }
+  | { type: "add"; url: string; scope: LinkScope }
   | { type: "pause" | "resume" | "skip" | "remove"; entryId: string }
   | { type: "seek"; entryId: string; positionMs: number }
   | { type: "move"; entryId: string; toIndex: number }
@@ -69,6 +70,7 @@ export type NackCode =
   | "invalid_url"
   | "unsupported_url"
   | "playlist_not_found"
+  | "song_not_in_playlist"
   | "provider_unavailable"
   | "unavailable";
 

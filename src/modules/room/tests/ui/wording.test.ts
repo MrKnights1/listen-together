@@ -28,6 +28,7 @@ describe("wording", () => {
       "invalid_url",
       "unsupported_url",
       "playlist_not_found",
+      "song_not_in_playlist",
       "provider_unavailable",
       "unavailable",
       "disconnected",
@@ -60,7 +61,14 @@ describe("wording", () => {
     });
 
     expect(summary).toStartWith("Nothing new was added.");
-    expect(summary).toContain("only its start was taken");
+    expect(summary).toContain("longer than the room can hold");
+  });
+
+  /** Nobody has a list of their own to fill any more: only the room can be full. */
+  test("blames the full room for songs left out", () => {
+    expect(
+      addSummary({ added: 2, duplicates: 0, overflow: 3, skipped: [], truncated: false }),
+    ).toBe("Added 2 songs to your list. 3 songs left out: the room is full.");
   });
 
   test("describes listeners in plain words", () => {

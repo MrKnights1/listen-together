@@ -1,13 +1,19 @@
 import type { Clock } from "@/shared/domain/Clock.ts";
 import { trackIdOf } from "@/shared/domain/TrackRef.ts";
 import { UnsupportedTrackUrl } from "@/modules/catalog/domain/errors.ts";
+import type { LinkScope } from "@/modules/catalog/domain/LinkScope.ts";
 import type { Resolution, SkippedTrack } from "@/modules/catalog/domain/Resolution.ts";
 import type { Track } from "@/modules/catalog/domain/Track.ts";
 import type { TrackRepository } from "@/modules/catalog/domain/ports/TrackRepository.ts";
 import type { TrackResolver } from "@/modules/catalog/domain/ports/TrackResolver.ts";
 import type { YouTubeCatalog } from "@/modules/catalog/domain/ports/YouTubeCatalog.ts";
+import { takeFromPlaylist } from "@/modules/catalog/domain/youtube/takeFromPlaylist.ts";
 import { trackFromVideo } from "@/modules/catalog/domain/youtube/trackFromVideo.ts";
-import { isYouTubeHost, parseYouTubeUrl } from "@/modules/catalog/domain/youtube/YouTubeUrl.ts";
+import {
+  isYouTubeHost,
+  parseYouTubeUrl,
+  type YouTubeTarget,
+} from "@/modules/catalog/domain/youtube/YouTubeUrl.ts";
 
 export interface YouTubeResolverOptions {
   /** Videos blocked in this ISO 3166-1 region are refused. */
@@ -39,30 +45,16 @@ export class YouTubeTrackResolver implements TrackResolver {
     return isYouTubeHost(url);
   }
 
-  async resolve(url: URL): Promise<Resolution> {
+  async resolve(url: URL, scope: LinkScope): Promise<Resolution> {
     const target = parseYouTubeUrl(url);
     if (target === null) throw new UnsupportedTrackUrl();
 
-    let videoIds: string[];
-    let truncated = false;
-    if (target.kind === "video") {
-      videoIds = [target.videoId];
-    } else {
-      const page = await this.catalog.playlistVideoIds(
-        target.playlistId,
-        this.options.maxPlaylistItems,
-      );
-      videoIds = page.videoIds;
-      truncated = page.hasMore;
-    }
-
-    // A playlist can hold the same video twice; the room queues it once.
-    const ordered = [...new Set(videoIds)];
-    const known = await this.lookup(ordered);
+    const { kind, videoIds, truncated } = await this.videoIdsOf(target, scope);
+    const known = await this.lookup(videoIds);
 
     const tracks: Track[] = [];
     const skipped: SkippedTrack[] = [];
-    for (const videoId of ordered) {
+    for (const videoId of videoIds) {
       const track = known.get(videoId);
       if (track === undefined) {
         skipped.push({ providerTrackId: videoId, title: null, reason: "not_found" });
@@ -77,7 +69,7 @@ export class YouTubeTrackResolver implements TrackResolver {
       }
     }
 
-    return { kind: target.kind, tracks, skipped, truncated };
+    return { kind, tracks, skipped, truncated };
   }
 
   async refresh(videoIds: string[]): Promise<Track[]> {
@@ -97,6 +89,24 @@ export class YouTubeTrackResolver implements TrackResolver {
 
     await this.tracks.saveAll(refreshed);
     return refreshed;
+  }
+
+  /** The videos a link names, in order: one song, or a playlist from the top or from a song in it. */
+  private async videoIdsOf(
+    target: YouTubeTarget,
+    scope: LinkScope,
+  ): Promise<{ kind: Resolution["kind"]; videoIds: string[]; truncated: boolean }> {
+    if (target.kind === "video" || (target.kind === "videoInPlaylist" && scope === "song")) {
+      return { kind: "video", videoIds: [target.videoId], truncated: false };
+    }
+
+    const startAt = target.kind === "videoInPlaylist" ? target.videoId : null;
+    const taken = await takeFromPlaylist(
+      this.catalog.playlistPages(target.playlistId),
+      startAt,
+      this.options.maxPlaylistItems,
+    );
+    return { kind: "playlist", videoIds: taken.videoIds, truncated: taken.hasMore };
   }
 
   /** Cached tracks still fresh enough, plus whatever YouTube says about the rest. */

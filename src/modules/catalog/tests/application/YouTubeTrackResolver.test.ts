@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { YouTubeTrackResolver } from "@/modules/catalog/application/youtube/YouTubeTrackResolver.ts";
-import { PlaylistNotFound, UnsupportedTrackUrl } from "@/modules/catalog/domain/errors.ts";
+import {
+  PlaylistNotFound,
+  SongNotInPlaylist,
+  UnsupportedTrackUrl,
+} from "@/modules/catalog/domain/errors.ts";
 import {
   FakeClock,
   InMemoryTrackRepository,
@@ -31,12 +35,15 @@ beforeEach(() => {
 
 const watch = (id: string) => new URL(`https://www.youtube.com/watch?v=${id}`);
 const playlist = (id: string) => new URL(`https://www.youtube.com/playlist?list=${id}`);
+/** The address bar while a playlist plays: a song, and the list it is playing from. */
+const songInList = (id: string, list: string) =>
+  new URL(`https://www.youtube.com/watch?v=${id}&list=${list}&index=46`);
 
 describe("YouTubeTrackResolver — a video", () => {
   test("resolves a link to its track", async () => {
     youtube.add(videoFacts("dQw4w9WgXcQ"));
 
-    const resolution = await resolver.resolve(watch("dQw4w9WgXcQ"));
+    const resolution = await resolver.resolve(watch("dQw4w9WgXcQ"), "song");
 
     expect(resolution.kind).toBe("video");
     expect(resolution.tracks.map((one) => one.id)).toEqual(["youtube:dQw4w9WgXcQ"]);
@@ -47,7 +54,7 @@ describe("YouTubeTrackResolver — a video", () => {
   test("caches what YouTube said", async () => {
     youtube.add(videoFacts("dQw4w9WgXcQ"));
 
-    await resolver.resolve(watch("dQw4w9WgXcQ"));
+    await resolver.resolve(watch("dQw4w9WgXcQ"), "song");
 
     expect(repository.ids()).toEqual(["youtube:dQw4w9WgXcQ"]);
   });
@@ -55,20 +62,20 @@ describe("YouTubeTrackResolver — a video", () => {
   /** The point of the cache: repeats and re-adds cost no quota. */
   test("answers a second paste from the cache without asking YouTube", async () => {
     youtube.add(videoFacts("dQw4w9WgXcQ"));
-    await resolver.resolve(watch("dQw4w9WgXcQ"));
+    await resolver.resolve(watch("dQw4w9WgXcQ"), "song");
 
     clock.advance(29 * DAY);
-    await resolver.resolve(watch("dQw4w9WgXcQ"));
+    await resolver.resolve(watch("dQw4w9WgXcQ"), "song");
 
     expect(youtube.videoCalls).toHaveLength(1);
   });
 
   test("asks YouTube again once the cached copy is 30 days old", async () => {
     youtube.add(videoFacts("dQw4w9WgXcQ"));
-    await resolver.resolve(watch("dQw4w9WgXcQ"));
+    await resolver.resolve(watch("dQw4w9WgXcQ"), "song");
 
     clock.advance(30 * DAY);
-    await resolver.resolve(watch("dQw4w9WgXcQ"));
+    await resolver.resolve(watch("dQw4w9WgXcQ"), "song");
 
     expect(youtube.videoCalls).toHaveLength(2);
   });
@@ -76,7 +83,7 @@ describe("YouTubeTrackResolver — a video", () => {
   test("reports an ineligible video as skipped, with its title and the reason", async () => {
     youtube.add(videoFacts("dQw4w9WgXcQ", { embeddable: false, title: "Blocked Song" }));
 
-    const resolution = await resolver.resolve(watch("dQw4w9WgXcQ"));
+    const resolution = await resolver.resolve(watch("dQw4w9WgXcQ"), "song");
 
     expect(resolution.tracks).toEqual([]);
     expect(resolution.skipped).toEqual([
@@ -86,15 +93,15 @@ describe("YouTubeTrackResolver — a video", () => {
 
   test("caches an ineligible video too, so pasting it again costs nothing", async () => {
     youtube.add(videoFacts("dQw4w9WgXcQ", { embeddable: false }));
-    await resolver.resolve(watch("dQw4w9WgXcQ"));
+    await resolver.resolve(watch("dQw4w9WgXcQ"), "song");
 
-    await resolver.resolve(watch("dQw4w9WgXcQ"));
+    await resolver.resolve(watch("dQw4w9WgXcQ"), "song");
 
     expect(youtube.videoCalls).toHaveLength(1);
   });
 
   test("reports a video YouTube does not answer for as not found", async () => {
-    const resolution = await resolver.resolve(watch("dQw4w9WgXcQ"));
+    const resolution = await resolver.resolve(watch("dQw4w9WgXcQ"), "song");
 
     expect(resolution.skipped).toEqual([
       { providerTrackId: "dQw4w9WgXcQ", title: null, reason: "not_found" },
@@ -103,9 +110,9 @@ describe("YouTubeTrackResolver — a video", () => {
   });
 
   test("refuses a YouTube link that names no video or playlist", async () => {
-    await expect(resolver.resolve(new URL("https://www.youtube.com/@channel"))).rejects.toThrow(
-      UnsupportedTrackUrl,
-    );
+    await expect(
+      resolver.resolve(new URL("https://www.youtube.com/@channel"), "song"),
+    ).rejects.toThrow(UnsupportedTrackUrl);
   });
 });
 
@@ -115,7 +122,7 @@ describe("YouTubeTrackResolver — a playlist", () => {
     youtube.playlists.set("PLmine", ids);
     youtube.add(...ids.map((id) => videoFacts(id)));
 
-    const resolution = await resolver.resolve(playlist("PLmine"));
+    const resolution = await resolver.resolve(playlist("PLmine"), "song");
 
     expect(resolution.kind).toBe("playlist");
     expect(resolution.tracks.map((one) => one.providerTrackId)).toEqual(ids);
@@ -127,7 +134,7 @@ describe("YouTubeTrackResolver — a playlist", () => {
     youtube.add(...ids.map((id) => videoFacts(id)));
     await repository.saveAll([track(videoId(2), { fetchedAt: NOW })]);
 
-    await resolver.resolve(playlist("PLmine"));
+    await resolver.resolve(playlist("PLmine"), "song");
 
     expect(youtube.videoCalls).toEqual([[videoId(1), videoId(3)]]);
   });
@@ -136,7 +143,7 @@ describe("YouTubeTrackResolver — a playlist", () => {
     youtube.playlists.set("PLmine", [videoId(1), videoId(2), videoId(1)]);
     youtube.add(videoFacts(videoId(1)), videoFacts(videoId(2)));
 
-    const resolution = await resolver.resolve(playlist("PLmine"));
+    const resolution = await resolver.resolve(playlist("PLmine"), "song");
 
     expect(resolution.tracks.map((one) => one.providerTrackId)).toEqual([videoId(1), videoId(2)]);
   });
@@ -146,7 +153,7 @@ describe("YouTubeTrackResolver — a playlist", () => {
     youtube.playlists.set("PLbig", ids);
     youtube.add(...ids.map((id) => videoFacts(id)));
 
-    const resolution = await resolver.resolve(playlist("PLbig"));
+    const resolution = await resolver.resolve(playlist("PLbig"), "song");
 
     expect(resolution.tracks).toHaveLength(5);
     expect(resolution.truncated).toBe(true);
@@ -160,7 +167,7 @@ describe("YouTubeTrackResolver — a playlist", () => {
       videoFacts(videoId(4), { liveBroadcastContent: "live", isoDuration: "P0D" }),
     );
 
-    const resolution = await resolver.resolve(playlist("PLmixed"));
+    const resolution = await resolver.resolve(playlist("PLmixed"), "song");
 
     expect(resolution.tracks.map((one) => one.providerTrackId)).toEqual([videoId(1)]);
     expect(resolution.skipped.map((one) => [one.providerTrackId, one.reason])).toEqual([
@@ -171,7 +178,57 @@ describe("YouTubeTrackResolver — a playlist", () => {
   });
 
   test("passes a missing playlist through as PlaylistNotFound", async () => {
-    await expect(resolver.resolve(playlist("PLgone"))).rejects.toThrow(PlaylistNotFound);
+    await expect(resolver.resolve(playlist("PLgone"), "song")).rejects.toThrow(PlaylistNotFound);
+  });
+});
+
+describe("YouTubeTrackResolver — a song inside a playlist", () => {
+  const ids = Array.from({ length: 7 }, (_, index) => videoId(index + 1));
+
+  beforeEach(() => {
+    youtube.playlists.set("PLmine", ids);
+    youtube.add(...ids.map((id) => videoFacts(id)));
+  });
+
+  test("takes just the song when that was meant, without reading the playlist", async () => {
+    const resolution = await resolver.resolve(songInList(videoId(4), "PLmine"), "song");
+
+    expect(resolution.kind).toBe("video");
+    expect(resolution.tracks.map((one) => one.providerTrackId)).toEqual([videoId(4)]);
+    expect(youtube.playlistCalls).toEqual([]);
+  });
+
+  test("takes the playlist from that song on, in playlist order", async () => {
+    const resolution = await resolver.resolve(songInList(videoId(4), "PLmine"), "playlist");
+
+    expect(resolution.kind).toBe("playlist");
+    expect(resolution.tracks.map((one) => one.providerTrackId)).toEqual(ids.slice(3));
+    expect(resolution.truncated).toBe(false);
+  });
+
+  test("counts the cap from the song, and says when there was more", async () => {
+    const resolution = await resolver.resolve(songInList(videoId(2), "PLmine"), "playlist");
+
+    expect(resolution.tracks.map((one) => one.providerTrackId)).toEqual(ids.slice(1, 6));
+    expect(resolution.truncated).toBe(true);
+  });
+
+  test("asks YouTube about none of the songs before the linked one", async () => {
+    await resolver.resolve(songInList(videoId(6), "PLmine"), "playlist");
+
+    expect(youtube.videoCalls).toEqual([[videoId(6), videoId(7)]]);
+  });
+
+  test("refuses a song the playlist no longer holds", async () => {
+    await expect(resolver.resolve(songInList("dQw4w9WgXcQ", "PLmine"), "playlist")).rejects.toThrow(
+      SongNotInPlaylist,
+    );
+  });
+
+  test("passes a missing playlist through as PlaylistNotFound", async () => {
+    await expect(resolver.resolve(songInList(videoId(1), "PLgone"), "playlist")).rejects.toThrow(
+      PlaylistNotFound,
+    );
   });
 });
 

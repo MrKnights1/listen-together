@@ -12,7 +12,7 @@ interface RoomRow {
  * The room as one JSON document in one row. The room is a single aggregate
  * that changes as a whole and is read whole at boot; a row per entry would buy
  * nothing but a reassembly step and a way for the two to disagree. A full
- * room is about a hundred kilobytes, written once per command.
+ * room of 5000 songs is about a megabyte, written once per command.
  */
 export class SqliteRoomRepository implements RoomRepository {
   constructor(private readonly db: Database) {}

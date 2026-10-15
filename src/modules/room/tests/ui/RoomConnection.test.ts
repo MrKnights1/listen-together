@@ -140,9 +140,21 @@ describe("RoomConnection", () => {
     open();
 
     const waiting = connection.command({ type: "skip", entryId: "e1" });
-    await timers.advanceTo(30_000);
+    await timers.advanceTo(120_000);
 
     expect(await waiting).toEqual({ ok: false, code: "disconnected" });
+  });
+
+  /** A room-filling playlist takes most of a minute to read from YouTube. */
+  test("keeps waiting for a slow add well past a minute", async () => {
+    const live = open();
+
+    const adding = connection.command({ type: "add", url: "x", scope: "playlist" });
+    await timers.advanceTo(90_000);
+    const sent = live.sent.find((message) => message["t"] === "cmd");
+    live.receive({ t: "ack", id: sent?.["id"] as string, result: null });
+
+    expect(await adding).toEqual({ ok: true, result: null });
   });
 
   test("reconnects after a drop, waiting longer each time it fails", async () => {

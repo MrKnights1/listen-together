@@ -168,7 +168,8 @@ function listen(token: string, offset: number): { traffic: Traffic; stop: () => 
     const turn = sent + offset;
     const current = room.state.current;
     const song = SONG_IDS[(sent * LISTENERS.length + offset) % SONG_IDS.length] as string;
-    if (current === null || turn % 4 === 0) return { type: "add", url: `https://youtu.be/${song}` };
+    if (current === null || turn % 4 === 0)
+      return { type: "add", url: `https://youtu.be/${song}`, scope: "song" };
     if (turn % 4 === 1) {
       return { type: current.status === "playing" ? "pause" : "resume", entryId: current.entryId };
     }

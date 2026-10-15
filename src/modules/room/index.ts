@@ -7,6 +7,7 @@ export { decide, type AddOutcome, type Decision, type RejectionCode } from "./do
 export { commit, evolve } from "./domain/evolve.ts";
 export { endsAt, positionAt } from "./domain/playback.ts";
 export { emptyRoom, type QueueEntry, type RoomState } from "./domain/RoomState.ts";
+export { MAX_ROOM_ENTRIES } from "./domain/limits.ts";
 export type { RoomCommand } from "./domain/commands.ts";
 export type { RoomEvent } from "./domain/events.ts";
 export type { ActivityEntry } from "./domain/activity.ts";

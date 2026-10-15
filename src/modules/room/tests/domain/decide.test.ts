@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { decide } from "@/modules/room/domain/decide.ts";
-import { MAX_ENTRIES_PER_PERSON, MAX_ROOM_ENTRIES } from "@/modules/room/domain/limits.ts";
+import { MAX_ROOM_ENTRIES } from "@/modules/room/domain/limits.ts";
 import { positionAt } from "@/modules/room/domain/playback.ts";
 import { emptyRoom, type RoomState } from "@/modules/room/domain/RoomState.ts";
 import {
@@ -84,17 +84,19 @@ describe("add", () => {
     expect(decision.kind === "accepted" ? decision.add?.added : null).toEqual(["b1"]);
   });
 
-  test("stops at one person's share of the queue and counts what was left out", () => {
-    const state = roomWith(["ada", MAX_ENTRIES_PER_PERSON - 1]);
+  /** Songs play in the order they were added, so nobody's share needs a cap of its own. */
+  test("lets one person fill the whole room, counting only what does not fit", () => {
+    const state = roomWith(["bob", 1]);
 
     const decision = decide(
       state,
-      { type: "add", ownerId: "ada", tracks: songs("ada", 3) },
+      { type: "add", ownerId: "ada", tracks: songs("ada", MAX_ROOM_ENTRIES) },
       context(),
     );
 
-    // One playing, MAX - 2 waiting: room for two more of theirs.
-    expect(decision.kind === "accepted" ? decision.add?.added.length : null).toBe(2);
+    expect(decision.kind === "accepted" ? decision.add?.added.length : null).toBe(
+      MAX_ROOM_ENTRIES - 1,
+    );
     expect(decision.kind === "accepted" ? decision.add?.overflow : null).toBe(1);
   });
 

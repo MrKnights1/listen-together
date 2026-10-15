@@ -42,8 +42,11 @@ const BACKOFF_MS = [1000, 2000, 4000, 8000, 16_000, 30_000];
 const PING_BURST = 5;
 const PING_BURST_GAP_MS = 300;
 const PING_EVERY_MS = 60_000;
-/** Adding a playlist waits on YouTube; anything longer than this has gone wrong. */
-const COMMAND_TIMEOUT_MS = 30_000;
+/**
+ * Adding a playlist waits on YouTube: a 5000-song one took 44 s against the
+ * real API with nothing cached. Anything longer than this has gone wrong.
+ */
+const COMMAND_TIMEOUT_MS = 120_000;
 
 type Presence = { listening: boolean; sync: SyncStatus; errorCode: number | null };
 

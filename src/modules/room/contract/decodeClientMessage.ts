@@ -7,6 +7,7 @@ import {
   type CommandOp,
   type SyncStatus,
 } from "./messages.ts";
+import type { LinkScope } from "@/modules/room/domain/ports/TrackSource.ts";
 
 const SYNC_STATUSES = new Set<SyncStatus>([
   "idle",
@@ -16,6 +17,7 @@ const SYNC_STATUSES = new Set<SyncStatus>([
   "error",
 ]);
 const REPEAT_MODES = new Set(["off", "one", "all"]);
+const LINK_SCOPES = new Set(["song", "playlist"]);
 const ENTRY_COMMANDS = new Set(["pause", "resume", "skip", "remove"]);
 /** Ids are ours (UUIDs) or the client's own (command ids): printable, no spaces, bounded. */
 const ID = new RegExp(`^[A-Za-z0-9_-]{1,${MAX_ID_LENGTH}}$`);
@@ -39,9 +41,13 @@ function decodeOp(op: unknown): CommandOp | null {
   const type = op["type"];
 
   if (type === "add") {
-    const url = op["url"];
-    return hasOnly(op, ["type", "url"]) && typeof url === "string" && url.length <= MAX_URL_LENGTH
-      ? { type, url }
+    const { url, scope } = op;
+    return hasOnly(op, ["type", "url", "scope"]) &&
+      typeof url === "string" &&
+      url.length <= MAX_URL_LENGTH &&
+      typeof scope === "string" &&
+      LINK_SCOPES.has(scope)
+      ? { type, url, scope: scope as LinkScope }
       : null;
   }
   if (ENTRY_COMMANDS.has(type)) {

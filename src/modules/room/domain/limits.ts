@@ -1,8 +1,10 @@
-/** One person's songs in the queue. Long enough for any real playlist session, short enough to scroll. */
-export const MAX_ENTRIES_PER_PERSON = 300;
-
-/** The whole room. Bounds memory, the snapshot sent to every browser, and the daily cache refresh. */
-export const MAX_ROOM_ENTRIES = 1000;
+/**
+ * The whole room, and so the most one pasted playlist may add: as many as a
+ * YouTube playlist holds, though a channel's uploads can run longer. Bounds
+ * memory, the daily cache refresh, and the snapshot sent to every browser —
+ * a socket with 16 MB unsent is dropped; a full room is about 1.1 MB.
+ */
+export const MAX_ROOM_ENTRIES = 5000;
 
 /**
  * The end-of-song alarm fires this long after the computed end. YouTube

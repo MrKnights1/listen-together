@@ -40,18 +40,23 @@ describe("ResolveTrackUrl", () => {
   test("hands a YouTube link to the YouTube resolver", async () => {
     youtube.add(videoFacts("dQw4w9WgXcQ"));
 
-    const resolution = await new ResolveTrackUrl([resolver]).execute(" youtu.be/dQw4w9WgXcQ ");
+    const resolution = await new ResolveTrackUrl([resolver]).execute(
+      " youtu.be/dQw4w9WgXcQ ",
+      "song",
+    );
 
     expect(resolution.tracks.map((one) => one.id)).toEqual(["youtube:dQw4w9WgXcQ"]);
   });
 
   test("refuses something that is not a link", async () => {
-    await expect(new ResolveTrackUrl([resolver]).execute("hello")).rejects.toThrow(InvalidTrackUrl);
+    await expect(new ResolveTrackUrl([resolver]).execute("hello", "song")).rejects.toThrow(
+      InvalidTrackUrl,
+    );
   });
 
   test("refuses a link no provider here can play", async () => {
     await expect(
-      new ResolveTrackUrl([resolver]).execute("https://open.spotify.com/track/abc"),
+      new ResolveTrackUrl([resolver]).execute("https://open.spotify.com/track/abc", "song"),
     ).rejects.toThrow(UnsupportedTrackUrl);
     expect(youtube.videoCalls).toEqual([]);
   });

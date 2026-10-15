@@ -81,7 +81,10 @@ export class InMemoryTrackRepository implements TrackRepository {
 /** YouTube as a table of videos and playlists, counting every call like quota. */
 export class StubYouTubeCatalog implements YouTubeCatalog {
   readonly videoCalls: string[][] = [];
+  /** One entry per playlist page handed out — each a request on the real API. */
   readonly playlistCalls: string[] = [];
+  /** YouTube's pages hold 50; three is enough to cross pages in a test. */
+  pageSize = 3;
   readonly knownVideos = new Map<string, VideoFacts>();
   readonly playlists = new Map<string, string[]>();
 
@@ -96,10 +99,15 @@ export class StubYouTubeCatalog implements YouTubeCatalog {
       .filter((one): one is VideoFacts => one !== undefined);
   }
 
-  async playlistVideoIds(playlistId: string, limit: number) {
-    this.playlistCalls.push(playlistId);
+  async *playlistPages(playlistId: string): AsyncGenerator<string[]> {
     const ids = this.playlists.get(playlistId);
     if (ids === undefined) throw new PlaylistNotFound();
-    return { videoIds: ids.slice(0, limit), hasMore: ids.length > limit };
+
+    let start = 0;
+    do {
+      this.playlistCalls.push(playlistId);
+      yield ids.slice(start, start + this.pageSize);
+      start += this.pageSize;
+    } while (start < ids.length);
   }
 }

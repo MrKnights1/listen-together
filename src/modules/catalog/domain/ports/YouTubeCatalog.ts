@@ -5,13 +5,10 @@ export interface YouTubeCatalog {
   /** Facts for each id YouTube still answers for; private or deleted ids are simply absent. */
   videos(videoIds: string[]): Promise<VideoFacts[]>;
   /**
-   * The first `limit` video ids of a playlist, in playlist order, and whether
-   * it holds more. Stops paging once it has enough, so a huge playlist costs
-   * no more quota than a short one. Throws `PlaylistNotFound` for a playlist
-   * that is missing or not public.
+   * A playlist's video ids in playlist order, one page per request. A page is
+   * fetched only when asked for, so a reader that stops early spends no more
+   * quota. Throws `PlaylistNotFound` for a playlist that is missing or not
+   * public.
    */
-  playlistVideoIds(
-    playlistId: string,
-    limit: number,
-  ): Promise<{ videoIds: string[]; hasMore: boolean }>;
+  playlistPages(playlistId: string): AsyncIterable<string[]>;
 }

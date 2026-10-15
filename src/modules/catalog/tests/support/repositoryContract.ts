@@ -18,6 +18,18 @@ export function runTrackRepositoryContract(name: string, create: () => TrackRepo
       expect(await tracks.findByIds([])).toEqual([]);
     });
 
+    /** One pasted playlist may fill the room: 5000 songs looked up in one go. */
+    test("finds a whole full room's worth of tracks at once", async () => {
+      const many = Array.from({ length: 5000 }, (_, index) =>
+        track(`v${String(index).padStart(10, "0")}`),
+      );
+      await tracks.saveAll(many);
+
+      const found = await tracks.findByIds(many.map((one) => one.id));
+
+      expect(found).toHaveLength(5000);
+    });
+
     test("round-trips a track without changing any field", async () => {
       const one = track("dQw4w9WgXcQ", { artworkUrl: "https://i.ytimg.com/x.jpg" });
 

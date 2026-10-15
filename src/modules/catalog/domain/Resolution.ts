@@ -14,6 +14,6 @@ export interface Resolution {
   tracks: Track[];
   /** Tracks the link named that cannot be played, with the reason for each. */
   skipped: SkippedTrack[];
-  /** True when a playlist was longer than the cap and only its start was taken. */
+  /** True when a playlist was longer than one paste may take and only its first part was taken. */
   truncated: boolean;
 }

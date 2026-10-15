@@ -1,4 +1,5 @@
 import { UnsupportedTrackUrl } from "@/modules/catalog/domain/errors.ts";
+import type { LinkScope } from "@/modules/catalog/domain/LinkScope.ts";
 import type { Resolution } from "@/modules/catalog/domain/Resolution.ts";
 import type { TrackResolver } from "@/modules/catalog/domain/ports/TrackResolver.ts";
 import { parseTrackUrl } from "@/modules/catalog/domain/trackUrl.ts";
@@ -7,10 +8,10 @@ import { parseTrackUrl } from "@/modules/catalog/domain/trackUrl.ts";
 export class ResolveTrackUrl {
   constructor(private readonly resolvers: TrackResolver[]) {}
 
-  async execute(pasted: string): Promise<Resolution> {
+  async execute(pasted: string, scope: LinkScope): Promise<Resolution> {
     const url = parseTrackUrl(pasted);
     const resolver = this.resolvers.find((candidate) => candidate.recognizes(url));
     if (resolver === undefined) throw new UnsupportedTrackUrl();
-    return await resolver.resolve(url);
+    return await resolver.resolve(url, scope);
   }
 }

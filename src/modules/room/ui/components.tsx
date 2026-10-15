@@ -1,7 +1,9 @@
-import { useEffect, useEffectEvent, useRef, useState, type FormEvent } from "react";
+import { memo, useEffect, useEffectEvent, useRef, useState, type FormEvent } from "react";
+import { offersPlaylistChoice } from "@/modules/catalog/ui/index.ts";
 import type { SyncStatus } from "@/modules/player/ui/index.ts";
 import type { ListenerView, Person } from "@/modules/room/contract/messages.ts";
 import type { ActivityEntry } from "@/modules/room/domain/activity.ts";
+import type { LinkScope } from "@/modules/room/domain/ports/TrackSource.ts";
 import type { RepeatMode } from "@/modules/room/domain/RoomState.ts";
 import type { TrackInfo } from "@/modules/room/domain/TrackInfo.ts";
 import { Icon } from "@/shared/ui/Icon.tsx";
@@ -275,7 +277,11 @@ export interface QueueRow {
   durationMs: number;
 }
 
-export function UpNextList({
+/**
+ * Memoised: the page re-renders twice a second to move the clock, and a full
+ * room is 5000 rows. The list only re-renders when the queue or people change.
+ */
+export const UpNextList = memo(function UpNextList({
   rows,
   people,
   you,
@@ -382,29 +388,67 @@ export function UpNextList({
       )}
     </section>
   );
+});
+
+/** Asked when a pasted link names a song inside a playlist: which of the two was meant. */
+export function PlaylistChoice({ onChoose }: { onChoose: (scope: LinkScope) => void }) {
+  return (
+    <div className="add__choice">
+      <p>This song is part of a playlist.</p>
+      <div className="add__choices">
+        <button type="button" className="button" onClick={() => onChoose("song")}>
+          Just this song
+        </button>
+        <button
+          type="button"
+          className="button button--primary"
+          onClick={() => onChoose("playlist")}
+        >
+          Playlist from this song on
+        </button>
+      </div>
+    </div>
+  );
 }
 
-export function AddTrackForm({ onAdd }: { onAdd: (url: string) => Promise<string> }) {
+export function AddTrackForm({
+  onAdd,
+}: {
+  onAdd: (url: string, scope: LinkScope) => Promise<string>;
+}) {
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  /** A link naming a song inside a playlist, held back until its person says which they meant. */
+  const [choosing, setChoosing] = useState<string | null>(null);
   const added = message?.startsWith("Added") ?? false;
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (url.trim() === "" || busy) return;
+  async function add(link: string, scope: LinkScope) {
+    setChoosing(null);
     setBusy(true);
     setMessage(null);
-    const reply = await onAdd(url.trim());
+    const reply = await onAdd(link, scope);
     setBusy(false);
     setMessage(reply);
     if (reply.startsWith("Added")) setUrl("");
   }
 
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const link = url.trim();
+    if (link === "" || busy) return;
+    if (offersPlaylistChoice(link)) {
+      setMessage(null);
+      setChoosing(link);
+    } else {
+      void add(link, "song");
+    }
+  }
+
   return (
     <section className="add" aria-labelledby="add-heading">
       <h2 id="add-heading">Add songs</h2>
-      <form className="add__form" onSubmit={(event) => void submit(event)}>
+      <form className="add__form" onSubmit={submit}>
         <label className="add__label" htmlFor="add-url">
           YouTube video or playlist link
         </label>
@@ -417,7 +461,10 @@ export function AddTrackForm({ onAdd }: { onAdd: (url: string) => Promise<string
             autoComplete="off"
             placeholder="https://youtu.be/…"
             value={url}
-            onChange={(event) => setUrl(event.currentTarget.value)}
+            onChange={(event) => {
+              setUrl(event.currentTarget.value);
+              setChoosing(null);
+            }}
           />
           <button
             type="submit"
@@ -428,6 +475,7 @@ export function AddTrackForm({ onAdd }: { onAdd: (url: string) => Promise<string
           </button>
         </div>
       </form>
+      {choosing !== null && <PlaylistChoice onChoose={(scope) => void add(choosing, scope)} />}
       <p className={added ? "add__result add__result--added" : "add__result"} role="status">
         {added && <Icon name="check" />}
         {message}

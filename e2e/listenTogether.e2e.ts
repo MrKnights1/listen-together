@@ -53,6 +53,20 @@ async function add(page: Page, videoId: string): Promise<void> {
   await expect(page.locator(".add__result")).toHaveText("Added 1 song to your list.");
 }
 
+/** The address bar while a playlist plays: the form asks whether the song or the playlist was meant. */
+async function addFromPlaylistLink(page: Page, videoId: string): Promise<void> {
+  await page
+    .getByLabel("YouTube video or playlist link")
+    .fill(
+      `https://www.youtube.com/watch?v=${videoId}&list=PLFgquLnL59alCl_2TQvOiD5Vgm1hCaGSI&index=3`,
+    );
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await expect(page.getByText("This song is part of a playlist.")).toBeVisible();
+  await page.getByRole("button", { name: "Just this song" }).click();
+  await expect(page.locator(".add__result")).toHaveText("Added 1 song to your list.");
+  await expect(page.getByRole("button", { name: "Just this song" })).toHaveCount(0);
+}
+
 async function inSync(page: Page): Promise<void> {
   await expect(page.locator("p.sync")).toHaveText("In sync", { timeout: SETTLE_MS });
 }
@@ -69,7 +83,7 @@ test("two listeners hear the same moment, and each one's controls reach the othe
 
   await test.step("both hear the same moment of the same song", async () => {
     await add(ada, first.videoId);
-    await add(ada, second.videoId);
+    await addFromPlaylistLink(ada, second.videoId);
     await ada.getByRole("button", { name: "Start listening" }).click();
     await bob.getByRole("button", { name: "Start listening" }).click();
     await Promise.all([inSync(ada), inSync(bob)]);

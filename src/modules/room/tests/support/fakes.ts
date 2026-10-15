@@ -5,7 +5,11 @@ import type { ActivityEntry, NewActivity } from "@/modules/room/domain/activity.
 import { LinkRejected, type LinkRejectionCode } from "@/modules/room/domain/errors.ts";
 import type { ActivityRepository } from "@/modules/room/domain/ports/ActivityRepository.ts";
 import type { RoomRepository, StoredRoom } from "@/modules/room/domain/ports/RoomRepository.ts";
-import type { ResolvedLink, TrackSource } from "@/modules/room/domain/ports/TrackSource.ts";
+import type {
+  LinkScope,
+  ResolvedLink,
+  TrackSource,
+} from "@/modules/room/domain/ports/TrackSource.ts";
 import type { RoomState } from "@/modules/room/domain/RoomState.ts";
 import type { TrackInfo } from "@/modules/room/domain/TrackInfo.ts";
 
@@ -144,6 +148,8 @@ export class StubTrackSource implements TrackSource {
   readonly links = new Map<string, ResolvedLink>();
   readonly known = new Map<string, TrackInfo>();
   rejectWith: LinkRejectionCode | null = null;
+  /** The scope each resolve was asked for, in order. */
+  readonly scopes: LinkScope[] = [];
   unplayable: string[] = [];
   maintainedWith: string[][] = [];
 
@@ -152,7 +158,8 @@ export class StubTrackSource implements TrackSource {
     for (const track of tracks) this.known.set(track.trackId, track);
   }
 
-  async resolve(pasted: string): Promise<ResolvedLink> {
+  async resolve(pasted: string, scope: LinkScope): Promise<ResolvedLink> {
+    this.scopes.push(scope);
     if (this.rejectWith !== null) throw new LinkRejected(this.rejectWith);
     const resolved = this.links.get(pasted);
     if (resolved === undefined) throw new LinkRejected("unsupported_url");

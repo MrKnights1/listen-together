@@ -57,6 +57,7 @@ import {
   IdentityPeopleDirectory,
   MaintainQueue,
   MathRandom,
+  MAX_ROOM_ENTRIES,
   PauseEmptyRoom,
   RestoreRoom,
   RoomEngine,
@@ -66,8 +67,6 @@ import {
 } from "@/modules/room/index.ts";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-/** The most songs one pasted playlist may add. */
-const MAX_PLAYLIST_ITEMS = 200;
 
 const env = readEnv();
 
@@ -140,7 +139,8 @@ const youtubeResolver = new YouTubeTrackResolver(
   clock,
   {
     regionCode: env.youtubeRegionCode,
-    maxPlaylistItems: MAX_PLAYLIST_ITEMS,
+    // One paste may fill the whole room.
+    maxPlaylistItems: MAX_ROOM_ENTRIES,
     cacheTtlMs: 30 * DAY_MS,
   },
 );

@@ -1,6 +1,6 @@
 import type { RoomCommand, TrackToQueue } from "./commands.ts";
 import type { RoomEvent } from "./events.ts";
-import { MAX_ENTRIES_PER_PERSON, MAX_ROOM_ENTRIES } from "./limits.ts";
+import { MAX_ROOM_ENTRIES } from "./limits.ts";
 import { positionAt } from "./playback.ts";
 import type { Random } from "./ports/Random.ts";
 import { queuedBy, queueIndex, type QueueEntry, type RoomState } from "./RoomState.ts";
@@ -16,7 +16,7 @@ export interface AddOutcome {
   added: string[];
   /** Track ids already queued by this person, or playing right now. */
   duplicates: string[];
-  /** How many were left out because the person's share of the queue or the room was full. */
+  /** How many were left out because the room was full. */
   overflow: number;
 }
 
@@ -49,7 +49,6 @@ function decideAdd(
   if (playing !== undefined) taken.add(playing.trackId);
 
   let room = MAX_ROOM_ENTRIES - Object.keys(state.entries).length;
-  let space = MAX_ENTRIES_PER_PERSON - theirs.length;
   const entries: QueueEntry[] = [];
   const duplicates: string[] = [];
   let overflow = 0;
@@ -57,7 +56,7 @@ function decideAdd(
   for (const track of tracks) {
     if (taken.has(track.trackId)) {
       duplicates.push(track.trackId);
-    } else if (room <= 0 || space <= 0) {
+    } else if (room <= 0) {
       overflow += 1;
     } else {
       taken.add(track.trackId);
@@ -69,7 +68,6 @@ function decideAdd(
         addedAt: now,
       });
       room -= 1;
-      space -= 1;
     }
   }
 

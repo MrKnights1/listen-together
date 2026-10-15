@@ -124,7 +124,7 @@ describe("joining", () => {
   test("welcomes a newcomer with the whole room, who they are, and who is here", async () => {
     source.link("x", [trackInfo("one")]);
     const ada = await connect("ada");
-    await say(ada, { t: "cmd", id: "c1", op: { type: "add", url: "x" } });
+    await say(ada, { t: "cmd", id: "c1", op: { type: "add", url: "x", scope: "song" } });
 
     const bob = await connect("bob");
 
@@ -157,7 +157,7 @@ describe("commands", () => {
     const ada = await connect("ada");
     const bob = await connect("bob");
 
-    await say(ada, { t: "cmd", id: "c1", op: { type: "add", url: "x" } });
+    await say(ada, { t: "cmd", id: "c1", op: { type: "add", url: "x", scope: "song" } });
 
     expect(ada.last("ack")).toEqual({
       t: "ack",
@@ -170,11 +170,20 @@ describe("commands", () => {
     expect(update?.tracks.map((track) => track.trackId)).toEqual(["youtube:one", "youtube:two"]);
   });
 
+  test("the person's choice of song or playlist reaches the catalog", async () => {
+    source.link("x", [trackInfo("one")]);
+    const ada = await connect("ada");
+
+    await say(ada, { t: "cmd", id: "c1", op: { type: "add", url: "x", scope: "playlist" } });
+
+    expect(source.scopes).toEqual(["playlist"]);
+  });
+
   test("a link that adds nothing is refused with the reason", async () => {
     source.rejectWith = "playlist_not_found";
     const ada = await connect("ada");
 
-    await say(ada, { t: "cmd", id: "c1", op: { type: "add", url: "x" } });
+    await say(ada, { t: "cmd", id: "c1", op: { type: "add", url: "x", scope: "song" } });
 
     expect(ada.last("nack")).toEqual({ t: "nack", id: "c1", code: "playlist_not_found" });
   });
@@ -183,7 +192,7 @@ describe("commands", () => {
     source.link("x", [trackInfo("one"), trackInfo("two")]);
     const ada = await connect("ada");
     const bob = await connect("bob");
-    await say(ada, { t: "cmd", id: "c1", op: { type: "add", url: "x" } });
+    await say(ada, { t: "cmd", id: "c1", op: { type: "add", url: "x", scope: "song" } });
 
     await say(bob, { t: "cmd", id: "c2", op: { type: "skip", entryId: "entry-1" } });
 
@@ -211,14 +220,14 @@ describe("commands", () => {
     let release: () => void = () => undefined;
     source.link("slow", [trackInfo("one")]);
     const original = source.resolve.bind(source);
-    source.resolve = async (pasted) => {
+    source.resolve = async (pasted, scope) => {
       await new Promise<void>((resolve) => (release = resolve));
-      return await original(pasted);
+      return await original(pasted, scope);
     };
     const ada = await connect("ada");
 
-    const first = say(ada, { t: "cmd", id: "c1", op: { type: "add", url: "slow" } });
-    await say(ada, { t: "cmd", id: "c2", op: { type: "add", url: "slow" } });
+    const first = say(ada, { t: "cmd", id: "c1", op: { type: "add", url: "slow", scope: "song" } });
+    await say(ada, { t: "cmd", id: "c2", op: { type: "add", url: "slow", scope: "song" } });
     release();
     await first;
 
@@ -231,7 +240,7 @@ describe("commands", () => {
     const ada = await connect("ada");
 
     for (let i = 1; i <= 7; i += 1)
-      await say(ada, { t: "cmd", id: `c${i}`, op: { type: "add", url: "x" } });
+      await say(ada, { t: "cmd", id: `c${i}`, op: { type: "add", url: "x", scope: "song" } });
 
     expect(ada.last("nack")).toEqual({ t: "nack", id: "c7", code: "rate_limited" });
   });
@@ -278,7 +287,7 @@ describe("sessions", () => {
     const ada = await connect("ada");
     sessions.set("ada-token", { status: "signed_out" });
 
-    await say(ada, { t: "cmd", id: "c1", op: { type: "add", url: "x" } });
+    await say(ada, { t: "cmd", id: "c1", op: { type: "add", url: "x", scope: "song" } });
 
     expect(ada.closedWith?.code).toBe(SESSION_ENDED_CLOSE_CODE);
     expect(engine.snapshot().state.current).toBeNull();
@@ -336,7 +345,7 @@ describe("an empty room", () => {
   test("pauses a minute after the last person leaves, and not before", async () => {
     source.link("x", [trackInfo("one", 10 * EMPTY_ROOM_PAUSE_MS)]);
     const ada = await connect("ada");
-    await say(ada, { t: "cmd", id: "c1", op: { type: "add", url: "x" } });
+    await say(ada, { t: "cmd", id: "c1", op: { type: "add", url: "x", scope: "song" } });
 
     ada.close(1000, "bye");
     await timers.advanceTo(NOW + EMPTY_ROOM_PAUSE_MS - 1);
@@ -349,7 +358,7 @@ describe("an empty room", () => {
   test("keeps playing if someone comes back within the minute", async () => {
     source.link("x", [trackInfo("one", 10 * EMPTY_ROOM_PAUSE_MS)]);
     const ada = await connect("ada");
-    await say(ada, { t: "cmd", id: "c1", op: { type: "add", url: "x" } });
+    await say(ada, { t: "cmd", id: "c1", op: { type: "add", url: "x", scope: "song" } });
     ada.close(1000, "reload");
 
     await connect("ada");

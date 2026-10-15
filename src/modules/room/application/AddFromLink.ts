@@ -1,5 +1,9 @@
 import type { IdGenerator } from "@/shared/domain/IdGenerator.ts";
-import type { SkippedSong, TrackSource } from "@/modules/room/domain/ports/TrackSource.ts";
+import type {
+  LinkScope,
+  SkippedSong,
+  TrackSource,
+} from "@/modules/room/domain/ports/TrackSource.ts";
 import type { RoomEngine } from "./RoomEngine.ts";
 
 /** What pasting one link did, for the person who pasted it. */
@@ -7,11 +11,11 @@ export interface AddReport {
   added: number;
   /** Already in their list, or playing right now. */
   duplicates: number;
-  /** Left out because their list or the room was full. */
+  /** Left out because the room was full. */
   overflow: number;
   /** In the link but not playable here, with the reason for each. */
   skipped: SkippedSong[];
-  /** The playlist was longer than one paste may add. */
+  /** The playlist was longer than the room could take. */
   truncated: boolean;
 }
 
@@ -27,8 +31,8 @@ export class AddFromLink {
     private readonly ids: IdGenerator,
   ) {}
 
-  async execute(actorId: string, pasted: string): Promise<AddReport> {
-    const resolved = await this.trackSource.resolve(pasted);
+  async execute(actorId: string, pasted: string, scope: LinkScope): Promise<AddReport> {
+    const resolved = await this.trackSource.resolve(pasted, scope);
 
     const decision = await this.engine.execute(
       {

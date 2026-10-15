@@ -1,4 +1,5 @@
 import type { ProviderId } from "@/shared/domain/TrackRef.ts";
+import type { LinkScope } from "@/modules/catalog/domain/LinkScope.ts";
 import type { Resolution } from "@/modules/catalog/domain/Resolution.ts";
 import type { Track } from "@/modules/catalog/domain/Track.ts";
 
@@ -9,7 +10,7 @@ import type { Track } from "@/modules/catalog/domain/Track.ts";
 export interface TrackResolver {
   readonly provider: ProviderId;
   recognizes(url: URL): boolean;
-  resolve(url: URL): Promise<Resolution>;
+  resolve(url: URL, scope: LinkScope): Promise<Resolution>;
   /**
    * Asks the provider again about tracks it described before. Tracks it no
    * longer answers for come back with `not_found`.

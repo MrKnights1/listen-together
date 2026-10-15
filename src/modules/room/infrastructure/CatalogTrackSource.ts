@@ -6,7 +6,11 @@ import {
   type Track,
 } from "@/modules/catalog/index.ts";
 import { LinkRejected } from "@/modules/room/domain/errors.ts";
-import type { ResolvedLink, TrackSource } from "@/modules/room/domain/ports/TrackSource.ts";
+import type {
+  LinkScope,
+  ResolvedLink,
+  TrackSource,
+} from "@/modules/room/domain/ports/TrackSource.ts";
 import type { TrackInfo } from "@/modules/room/domain/TrackInfo.ts";
 
 export interface CatalogUseCases {
@@ -31,9 +35,9 @@ function toTrackInfo(track: Track): TrackInfo {
 export class CatalogTrackSource implements TrackSource {
   constructor(private readonly catalog: CatalogUseCases) {}
 
-  async resolve(pasted: string): Promise<ResolvedLink> {
+  async resolve(pasted: string, scope: LinkScope): Promise<ResolvedLink> {
     try {
-      const resolution = await this.catalog.resolveTrackUrl.execute(pasted);
+      const resolution = await this.catalog.resolveTrackUrl.execute(pasted, scope);
       return {
         tracks: resolution.tracks.map(toTrackInfo),
         skipped: resolution.skipped.map((one) => ({ title: one.title, reason: one.reason })),

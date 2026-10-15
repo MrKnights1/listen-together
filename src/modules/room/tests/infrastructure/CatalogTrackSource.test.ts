@@ -43,8 +43,9 @@ const fakeYouTube: YouTubeCatalogShape = {
       return facts === undefined ? [] : [facts];
     });
   },
-  async playlistVideoIds(_playlistId: string, _limit: number) {
-    return { videoIds: [...videos.keys()], hasMore: false };
+  /** Every known video, as one playlist of one page. */
+  async *playlistPages(_playlistId: string) {
+    yield [...videos.keys()];
   },
 };
 
@@ -91,7 +92,7 @@ describe("CatalogTrackSource", () => {
   test("turns a link into the room's view of its songs", async () => {
     video("dQw4w9WgXcQ");
 
-    const resolved = await source.resolve("https://youtu.be/dQw4w9WgXcQ");
+    const resolved = await source.resolve("https://youtu.be/dQw4w9WgXcQ", "song");
 
     expect(resolved).toEqual({
       tracks: [
@@ -110,10 +111,42 @@ describe("CatalogTrackSource", () => {
     });
   });
 
+  describe("a link to a song inside a playlist", () => {
+    const inList = "https://www.youtube.com/watch?v=BBBBBBBBBBB&list=PLmine&index=2";
+
+    beforeEach(() => {
+      for (const id of ["AAAAAAAAAAA", "BBBBBBBBBBB", "CCCCCCCCCCC"]) video(id);
+    });
+
+    test("is just that song when the person chose the song", async () => {
+      const resolved = await source.resolve(inList, "song");
+
+      expect(resolved.tracks.map((one) => one.providerTrackId)).toEqual(["BBBBBBBBBBB"]);
+    });
+
+    test("is the playlist from that song on when the person chose the playlist", async () => {
+      const resolved = await source.resolve(inList, "playlist");
+
+      expect(resolved.tracks.map((one) => one.providerTrackId)).toEqual([
+        "BBBBBBBBBBB",
+        "CCCCCCCCCCC",
+      ]);
+    });
+
+    test("is rejected as song_not_in_playlist once the playlist dropped the song", async () => {
+      videos.delete("BBBBBBBBBBB");
+
+      const failure = await source.resolve(inList, "playlist").catch((error: unknown) => error);
+
+      expect(failure).toBeInstanceOf(LinkRejected);
+      expect((failure as LinkRejected).code).toBe("song_not_in_playlist");
+    });
+  });
+
   test("passes skipped songs on with their reasons", async () => {
     video("dQw4w9WgXcQ", { embeddable: false, title: "Blocked" });
 
-    const resolved = await source.resolve("https://youtu.be/dQw4w9WgXcQ");
+    const resolved = await source.resolve("https://youtu.be/dQw4w9WgXcQ", "song");
 
     expect(resolved.skipped).toEqual([{ title: "Blocked", reason: "not_embeddable" }]);
   });
@@ -122,7 +155,7 @@ describe("CatalogTrackSource", () => {
     ["hello", "invalid_url"],
     ["https://open.spotify.com/track/abc", "unsupported_url"],
   ] as const)("rejects %p as %s", async (pasted, code) => {
-    const failure = await source.resolve(pasted).catch((error: unknown) => error);
+    const failure = await source.resolve(pasted, "song").catch((error: unknown) => error);
 
     expect(failure).toBeInstanceOf(LinkRejected);
     expect((failure as LinkRejected).code).toBe(code);
@@ -136,7 +169,7 @@ describe("CatalogTrackSource", () => {
 
     try {
       const failure = await source
-        .resolve("https://youtu.be/dQw4w9WgXcQ")
+        .resolve("https://youtu.be/dQw4w9WgXcQ", "song")
         .catch((error: unknown) => error);
       expect(failure).toBeInstanceOf(LinkRejected);
       expect((failure as LinkRejected).code).toBe("provider_unavailable");
@@ -149,12 +182,12 @@ describe("CatalogTrackSource", () => {
   test("lets an error that is not the catalog's through untouched", async () => {
     failing = new TypeError("a bug, not an outage");
 
-    await expect(source.resolve("https://youtu.be/dQw4w9WgXcQ")).rejects.toThrow(TypeError);
+    await expect(source.resolve("https://youtu.be/dQw4w9WgXcQ", "song")).rejects.toThrow(TypeError);
   });
 
   test("describes cached songs by id", async () => {
     video("dQw4w9WgXcQ");
-    await source.resolve("https://youtu.be/dQw4w9WgXcQ");
+    await source.resolve("https://youtu.be/dQw4w9WgXcQ", "song");
 
     expect(
       (await source.describe(["youtube:dQw4w9WgXcQ", "youtube:missing0000"])).map((t) => t.title),
@@ -163,7 +196,7 @@ describe("CatalogTrackSource", () => {
 
   test("reports queued songs that stopped being playable", async () => {
     video("dQw4w9WgXcQ");
-    await source.resolve("https://youtu.be/dQw4w9WgXcQ");
+    await source.resolve("https://youtu.be/dQw4w9WgXcQ", "song");
     videos.clear();
     clock.set(NOW + 26 * 86_400_000);
 

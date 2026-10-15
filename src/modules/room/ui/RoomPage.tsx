@@ -116,6 +116,18 @@ export function RoomPage({ me }: { me: SessionUser }) {
     control({ type: current.status === "playing" ? "pause" : "resume", entryId: current.entryId });
   }, [current, control]);
 
+  const moveEntry = useCallback(
+    (entryId: string, toIndex: number) => control({ type: "move", entryId, toIndex }),
+    [control],
+  );
+  const removeEntry = useCallback(
+    (entryId: string) => control({ type: "remove", entryId }),
+    [control],
+  );
+  const shuffleMine = useCallback(() => {
+    if (room.you !== null) control({ type: "shuffle", ownerId: room.you });
+  }, [room.you, control]);
+
   const rows = useMemo<QueueRow[]>(
     () =>
       state.queue.flatMap((entryId) => {
@@ -245,18 +257,16 @@ export function RoomPage({ me }: { me: SessionUser }) {
             rows={rows}
             people={people}
             you={room.you}
-            onMove={(entryId, toIndex) => control({ type: "move", entryId, toIndex })}
-            onRemove={(entryId) => control({ type: "remove", entryId })}
-            onShuffleMine={() =>
-              room.you !== null && control({ type: "shuffle", ownerId: room.you })
-            }
+            onMove={moveEntry}
+            onRemove={removeEntry}
+            onShuffleMine={shuffleMine}
           />
         </main>
 
         <div className="pane pane--side">
           <AddTrackForm
-            onAdd={async (url) => {
-              const outcome = await command({ type: "add", url });
+            onAdd={async (url, scope) => {
+              const outcome = await command({ type: "add", url, scope });
               if (!outcome.ok) return refusal(outcome.code);
               return outcome.result === null ? "Added." : addSummary(outcome.result);
             }}

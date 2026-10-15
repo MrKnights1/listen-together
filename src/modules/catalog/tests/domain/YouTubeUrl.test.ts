@@ -21,13 +21,38 @@ describe("parseYouTubeUrl — videos", () => {
   ])("%s is one video", (href) => {
     expect(parse(href)).toEqual({ kind: "video", videoId: ID });
   });
+});
 
-  /** The song on screen when somebody copied the address bar — not the whole list. */
-  test("a watch link inside a playlist adds just that video", () => {
-    expect(parse(`https://www.youtube.com/watch?v=${ID}&list=${LIST}&index=3`)).toEqual({
+describe("parseYouTubeUrl — a video inside a playlist", () => {
+  /** The song on screen when somebody copied the address bar: it could mean either. */
+  test.each([
+    `https://www.youtube.com/watch?v=${ID}&list=${LIST}&index=3`,
+    `https://music.youtube.com/watch?v=${ID}&list=${LIST}`,
+    `https://youtu.be/${ID}?list=${LIST}&si=abc`,
+    // A Mix: YouTube's endless radio, which the Data API reads like any playlist.
+    `https://www.youtube.com/watch?v=${ID}&list=RD${ID}&start_radio=1`,
+  ])("%s names both", (href) => {
+    const list = new URL(href).searchParams.get("list") as string;
+    expect(parse(href)).toEqual({ kind: "videoInPlaylist", videoId: ID, playlistId: list });
+  });
+
+  /** Liked videos, Watch Later and liked music: the Data API never shows them to anybody else. */
+  test.each(["LL", "WL", "LM"])("a song played from the private list %s is just a song", (list) => {
+    expect(parse(`https://www.youtube.com/watch?v=${ID}&list=${list}&index=7`)).toEqual({
       kind: "video",
       videoId: ID,
     });
+  });
+
+  test("a list id that is junk leaves just the song", () => {
+    expect(parse(`https://www.youtube.com/watch?v=${ID}&list=%3Cscript%3E`)).toEqual({
+      kind: "video",
+      videoId: ID,
+    });
+  });
+
+  test("a list beside a bad video id names nothing", () => {
+    expect(parse(`https://www.youtube.com/watch?v=tooShort&list=${LIST}`)).toBeNull();
   });
 });
 

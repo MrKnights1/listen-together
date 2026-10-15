@@ -73,14 +73,10 @@ export class YouTubeDataApiClient implements YouTubeCatalog {
     return facts;
   }
 
-  async playlistVideoIds(
-    playlistId: string,
-    limit: number,
-  ): Promise<{ videoIds: string[]; hasMore: boolean }> {
-    const videoIds: string[] = [];
+  async *playlistPages(playlistId: string): AsyncGenerator<string[]> {
     let pageToken: string | null = null;
 
-    for (;;) {
+    do {
       const params: Record<string, string> = {
         part: "contentDetails",
         playlistId,
@@ -89,21 +85,12 @@ export class YouTubeDataApiClient implements YouTubeCatalog {
       if (pageToken !== null) params["pageToken"] = pageToken;
 
       const page = (await this.get("playlistItems", params, "playlist")) as PlaylistPage;
-      for (const item of page.items ?? []) {
-        const videoId = item.contentDetails?.videoId;
-        if (typeof videoId === "string") videoIds.push(videoId);
-      }
+      yield (page.items ?? [])
+        .map((item) => item.contentDetails?.videoId)
+        .filter((videoId): videoId is string => typeof videoId === "string");
 
-      const next = typeof page.nextPageToken === "string" ? page.nextPageToken : null;
-      if (videoIds.length >= limit) {
-        return {
-          videoIds: videoIds.slice(0, limit),
-          hasMore: videoIds.length > limit || next !== null,
-        };
-      }
-      if (next === null) return { videoIds, hasMore: false };
-      pageToken = next;
-    }
+      pageToken = typeof page.nextPageToken === "string" ? page.nextPageToken : null;
+    } while (pageToken !== null);
   }
 
   private async get(

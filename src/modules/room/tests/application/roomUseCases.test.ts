@@ -57,7 +57,7 @@ describe("AddFromLink", () => {
       skipped: [{ title: "Private song", reason: "private" }],
     });
 
-    const report = await addFromLink().execute("ada", "youtu.be/x");
+    const report = await addFromLink().execute("ada", "youtu.be/x", "song");
 
     expect(report).toEqual({
       added: 2,
@@ -72,11 +72,12 @@ describe("AddFromLink", () => {
 
   test("counts songs already in the person's list as duplicates", async () => {
     source.link("youtu.be/x", [trackInfo("one"), trackInfo("two")]);
-    await addFromLink().execute("ada", "youtu.be/x");
+    await addFromLink().execute("ada", "youtu.be/x", "song");
 
     const again = await new AddFromLink(source, engine, new SequenceIds()).execute(
       "ada",
       "youtu.be/x",
+      "song",
     );
 
     expect(again.added).toBe(0);
@@ -86,21 +87,29 @@ describe("AddFromLink", () => {
   test("passes a rejected link through and touches nothing", async () => {
     source.rejectWith = "playlist_not_found";
 
-    await expect(addFromLink().execute("ada", "youtu.be/x")).rejects.toThrow(LinkRejected);
+    await expect(addFromLink().execute("ada", "youtu.be/x", "song")).rejects.toThrow(LinkRejected);
     expect(rooms.saves).toBe(0);
+  });
+
+  test("passes the person's choice of song or playlist on to the catalog", async () => {
+    source.link("youtu.be/x?list=PL", [trackInfo("one"), trackInfo("two")]);
+
+    await addFromLink().execute("ada", "youtu.be/x?list=PL", "playlist");
+
+    expect(source.scopes).toEqual(["playlist"]);
   });
 
   test("says when a playlist was cut short", async () => {
     source.link("list", [trackInfo("one")], { truncated: true });
 
-    expect((await addFromLink().execute("ada", "list")).truncated).toBe(true);
+    expect((await addFromLink().execute("ada", "list", "song")).truncated).toBe(true);
   });
 });
 
 describe("ControlRoom", () => {
   test("lets anyone in the room skip for everyone", async () => {
     source.link("x", [trackInfo("one"), trackInfo("two")]);
-    await addFromLink().execute("ada", "x");
+    await addFromLink().execute("ada", "x", "song");
 
     const decision = await new ControlRoom(engine).execute("bob", {
       type: "skip",
@@ -208,7 +217,7 @@ describe("RestoreRoom", () => {
 describe("PauseEmptyRoom", () => {
   beforeEach(async () => {
     source.link("x", [trackInfo("one", 10 * EMPTY_ROOM_PAUSE_MS)]);
-    await addFromLink().execute("ada", "x");
+    await addFromLink().execute("ada", "x", "song");
   });
 
   test("pauses the room a minute after the last listener leaves", async () => {
@@ -249,7 +258,7 @@ describe("PauseEmptyRoom", () => {
 describe("MaintainQueue", () => {
   test("removes queued songs that can no longer play, and tells the catalog what is in use", async () => {
     source.link("x", [trackInfo("one"), trackInfo("two"), trackInfo("three")]);
-    await addFromLink().execute("ada", "x");
+    await addFromLink().execute("ada", "x", "song");
     source.unplayable = ["youtube:two"];
 
     const result = await new MaintainQueue(engine, source, activity, clock).execute();
@@ -284,7 +293,7 @@ describe("MaintainQueue", () => {
 describe("GetRoomView", () => {
   test("gives a newcomer the room, its songs, the recent feed and the people in it", async () => {
     source.link("x", [trackInfo("one")]);
-    await addFromLink().execute("ada", "x");
+    await addFromLink().execute("ada", "x", "song");
     const people = new InMemoryPeopleDirectory({ ada: "Ada", bob: "Bob", cy: "Cy" });
 
     const view = await new GetRoomView(engine, activity, new DescribePeople(people)).execute([
@@ -299,7 +308,7 @@ describe("GetRoomView", () => {
 
   test("asks about each person once, however often they appear", async () => {
     source.link("x", [trackInfo("one"), trackInfo("two")]);
-    await addFromLink().execute("ada", "x");
+    await addFromLink().execute("ada", "x", "song");
     const people = new InMemoryPeopleDirectory({ ada: "Ada" });
 
     await new GetRoomView(engine, activity, new DescribePeople(people)).execute(["ada"]);

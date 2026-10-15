@@ -16,6 +16,8 @@ export function refusal(code: NackCode | "disconnected"): string {
       return "Only YouTube video and playlist links can be added.";
     case "playlist_not_found":
       return "That playlist doesn't exist or isn't public.";
+    case "song_not_in_playlist":
+      return "That song isn't in that playlist any more. Paste the playlist's own link to add it.";
     case "provider_unavailable":
       return "YouTube isn't answering right now. Try again in a minute.";
     case "invalid":
@@ -47,9 +49,9 @@ export function addSummary(result: AddResult): string {
     result.added === 0 ? "Nothing new was added." : `Added ${songs(result.added)} to your list.`,
   );
   if (result.duplicates > 0) parts.push(`${songs(result.duplicates)} already queued.`);
-  if (result.overflow > 0) parts.push(`${songs(result.overflow)} left out: your list is full.`);
+  if (result.overflow > 0) parts.push(`${songs(result.overflow)} left out: the room is full.`);
   if (result.truncated)
-    parts.push("The playlist was longer than one paste can add, so only its start was taken.");
+    parts.push("The playlist was longer than the room can hold, so only its first part was taken.");
   if (result.skipped.length === 1) {
     const [only] = result.skipped;
     parts.push(

@@ -252,7 +252,7 @@ export class RoomSockets {
 
     this.resolving.add(userId);
     try {
-      const result = await this.deps.addFromLink.execute(userId, op.url);
+      const result = await this.deps.addFromLink.execute(userId, op.url, op.scope);
       this.send(ws, { t: "ack", id, result });
     } catch (error) {
       if (!(error instanceof LinkRejected)) throw error;

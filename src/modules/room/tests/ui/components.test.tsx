@@ -8,6 +8,7 @@ import {
   ListenButton,
   ListenerList,
   NowPlaying,
+  PlaylistChoice,
   SeekBar,
   TransportControls,
   UpNextList,
@@ -190,6 +191,14 @@ describe("ListenerList", () => {
 });
 
 describe("UpNextList", () => {
+  /**
+   * The page re-renders twice a second to move the clock. Re-rendering a full
+   * room's 5000 rows each time blocked the page for 5 s in every 8.
+   */
+  test("is memoised, so the clock's ticks do not re-render the whole queue", () => {
+    expect((UpNextList as unknown as { $$typeof: symbol }).$$typeof).toBe(Symbol.for("react.memo"));
+  });
+
   test("numbers the rows in play order and names each song's artist", () => {
     const html = renderToStaticMarkup(
       <UpNextList
@@ -301,6 +310,17 @@ describe("AddTrackForm", () => {
     expect(html).toContain('for="add-url"');
     expect(html).toContain("YouTube video or playlist link");
     expect(html).toContain('role="status"');
+  });
+});
+
+describe("PlaylistChoice", () => {
+  test("offers the song alone or the playlist from it, as buttons that do not submit", () => {
+    const html = renderToStaticMarkup(<PlaylistChoice onChoose={noop} />);
+
+    expect(html).toContain("This song is part of a playlist.");
+    expect(html).toContain(">Just this song</button>");
+    expect(html).toContain(">Playlist from this song on</button>");
+    expect(html.match(/type="button"/g)).toHaveLength(2);
   });
 });
 

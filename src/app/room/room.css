@@ -737,6 +737,18 @@
   flex: 1;
 }
 
+.add__choice {
+  display: grid;
+  gap: 8px;
+  font-size: 0.9375rem;
+}
+
+.add__choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .add__result {
   display: flex;
   align-items: flex-start;

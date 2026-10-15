@@ -235,40 +235,60 @@ describe("YouTubeDataApiClient — item parsing", () => {
   });
 });
 
-describe("YouTubeDataApiClient.playlistVideoIds", () => {
-  test("reads every page of a playlist shorter than the limit", async () => {
+describe("YouTubeDataApiClient.playlistPages", () => {
+  /** Every page the adapter hands out, read to the end. */
+  async function allPages(playlistId: string): Promise<string[][]> {
+    const pages: string[][] = [];
+    for await (const page of client().playlistPages(playlistId)) pages.push(page);
+    return pages;
+  }
+
+  test("hands out every page of a playlist in order, 50 at a time", async () => {
     playlistLength = 120;
 
-    const result = await client().playlistVideoIds("PLmine", 200);
+    const pages = await allPages("PLmine");
 
-    expect(result.videoIds).toHaveLength(120);
-    expect(result.videoIds[0]).toBe(videoId(1));
-    expect(result.videoIds[119]).toBe(videoId(120));
-    expect(result.hasMore).toBe(false);
+    expect(pages.map((page) => page.length)).toEqual([50, 50, 20]);
+    expect(pages.flat()[0]).toBe(videoId(1));
+    expect(pages.flat()[119]).toBe(videoId(120));
     expect(requests).toHaveLength(3);
   });
 
-  /** A huge playlist must cost no more quota than the cap needs. */
-  test("stops paging once it has enough, and says there was more", async () => {
-    playlistLength = 1000;
+  test("follows YouTube's page tokens", async () => {
+    playlistLength = 120;
 
-    const result = await client().playlistVideoIds("PLhuge", 200);
+    await allPages("PLmine");
 
-    expect(result.videoIds).toHaveLength(200);
-    expect(result.hasMore).toBe(true);
-    expect(requests).toHaveLength(4);
+    expect(requests.map((request) => request.searchParams.get("pageToken"))).toEqual([
+      null,
+      "1",
+      "2",
+    ]);
   });
 
-  test("knows a playlist exactly the size of the limit has nothing more", async () => {
-    playlistLength = 100;
+  /** A huge playlist must cost no more quota than its reader needs. */
+  test("asks for no page nobody reads", async () => {
+    playlistLength = 1000;
 
-    expect((await client().playlistVideoIds("PLexact", 100)).hasMore).toBe(false);
+    for await (const page of client().playlistPages("PLhuge")) {
+      if (page.length > 0) break;
+    }
+
+    expect(requests).toHaveLength(1);
+  });
+
+  test("asks for nothing until the first page is wanted", () => {
+    playlistLength = 3;
+
+    client().playlistPages("PLmine");
+
+    expect(requests).toHaveLength(0);
   });
 
   test("asks for contentDetails, 50 at a time, for the named playlist", async () => {
     playlistLength = 3;
 
-    await client().playlistVideoIds("PLmine", 200);
+    await allPages("PLmine");
 
     expect(requests[0]?.searchParams.get("part")).toBe("contentDetails");
     expect(requests[0]?.searchParams.get("maxResults")).toBe("50");
@@ -276,12 +296,12 @@ describe("YouTubeDataApiClient.playlistVideoIds", () => {
   });
 
   test("reports a missing playlist as PlaylistNotFound", async () => {
-    await expect(client().playlistVideoIds("PLmissing", 200)).rejects.toThrow(PlaylistNotFound);
+    await expect(allPages("PLmissing")).rejects.toThrow(PlaylistNotFound);
   });
 
   test("reports a private playlist as PlaylistNotFound", async () => {
     failWith = { status: 403, reason: "playlistItemsNotAccessible" };
 
-    await expect(client().playlistVideoIds("PLprivate", 200)).rejects.toThrow(PlaylistNotFound);
+    await expect(allPages("PLprivate")).rejects.toThrow(PlaylistNotFound);
   });
 });

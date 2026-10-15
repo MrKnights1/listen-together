@@ -42,7 +42,7 @@ export class SqliteTrackRepository implements TrackRepository {
          fetched_at        = excluded.fetched_at`,
     );
 
-    // One transaction: a 200-song playlist is one fsync, not two hundred.
+    // One transaction: a 5000-song playlist is one fsync, not five thousand.
     this.db.transaction(() => {
       for (const track of tracks) {
         const s = track.toSnapshot();

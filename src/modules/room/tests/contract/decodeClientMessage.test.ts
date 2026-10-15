@@ -11,7 +11,20 @@ describe("decodeClientMessage — accepted", () => {
     [{ t: "resync" }],
     [{ t: "presence", listening: true, sync: "in_sync", errorCode: null }],
     [{ t: "presence", listening: false, sync: "error", errorCode: 150 }],
-    [{ t: "cmd", id: "c1", op: { type: "add", url: "https://youtu.be/dQw4w9WgXcQ" } }],
+    [
+      {
+        t: "cmd",
+        id: "c1",
+        op: { type: "add", url: "https://youtu.be/dQw4w9WgXcQ", scope: "song" },
+      },
+    ],
+    [
+      {
+        t: "cmd",
+        id: "c11",
+        op: { type: "add", url: "https://youtu.be/x?list=PL", scope: "playlist" },
+      },
+    ],
     [{ t: "cmd", id: "c2", op: { type: "pause", entryId: ENTRY } }],
     [{ t: "cmd", id: "c3", op: { type: "resume", entryId: ENTRY } }],
     [{ t: "cmd", id: "c4", op: { type: "skip", entryId: ENTRY } }],
@@ -82,14 +95,26 @@ describe("decodeClientMessage — refused", () => {
     ],
     [
       "an add with a number for a link",
-      JSON.stringify({ t: "cmd", id: "c", op: { type: "add", url: 42 } }),
+      JSON.stringify({ t: "cmd", id: "c", op: { type: "add", url: 42, scope: "song" } }),
+    ],
+    [
+      "an add that does not say song or playlist",
+      JSON.stringify({ t: "cmd", id: "c", op: { type: "add", url: "https://youtu.be/x" } }),
+    ],
+    [
+      "an add with an unknown scope",
+      JSON.stringify({
+        t: "cmd",
+        id: "c",
+        op: { type: "add", url: "https://youtu.be/x", scope: "everything" },
+      }),
     ],
     [
       "an add with an over-long link",
       JSON.stringify({
         t: "cmd",
         id: "c",
-        op: { type: "add", url: "a".repeat(MAX_URL_LENGTH + 1) },
+        op: { type: "add", url: "a".repeat(MAX_URL_LENGTH + 1), scope: "song" },
       }),
     ],
     [

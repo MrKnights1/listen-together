@@ -16,6 +16,7 @@ export {
   type YouTubeResolverOptions,
 } from "./application/youtube/YouTubeTrackResolver.ts";
 export { CatalogError, type CatalogErrorCode } from "./domain/errors.ts";
+export type { LinkScope } from "./domain/LinkScope.ts";
 export type { Resolution, SkippedTrack } from "./domain/Resolution.ts";
 export type { Track, UnplayableReason } from "./domain/Track.ts";
 export type { TrackResolver } from "./domain/ports/TrackResolver.ts";
