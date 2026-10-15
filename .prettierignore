@@ -1,0 +1,13 @@
+node_modules/
+dist/
+data/
+.playwright-mcp/
+test-results/
+playwright-report/
+
+# Not Prettier's languages.
+migrations/
+bun.lock
+
+# Prose is hand-wrapped; Prettier would only renormalise emphasis and repad tables.
+*.md

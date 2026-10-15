@@ -1,0 +1,32 @@
+#!/bin/sh
+#
+# Judges the TypeScript about to be committed, and nothing else.
+#
+# This checks rather than rewrites. A hook that runs `--fix` has to stash the
+# unstaged half of a partially staged file and put it back afterwards, and gets
+# to corrupt your working tree when that goes wrong. Refusing the commit and
+# letting you run `bun run lint:fix` yourself trades a keystroke for never
+# touching code you did not ask it to touch.
+#
+# Scoped to staged files because it is worth it: type-aware linting of two files
+# takes ~2s against ~12s for the tree. Note the check reads the working tree, so
+# a staged file with newer unstaged edits is judged on the newer text.
+#
+# The suite is not run here. It takes 6s and passing it is a property of the
+# branch, not of each commit; `bun test` belongs where it cannot be skipped.
+
+set -e
+
+# The list is NUL-separated and stays in a file rather than a variable: a path
+# may hold spaces, quotes or backslashes, all of which plain `xargs` splits on
+# or eats, and a shell variable cannot carry a NUL to prevent that. `--` after
+# the command stops a path that begins with `-` from arriving as a flag.
+list=$(mktemp)
+trap 'rm -f "$list"' EXIT INT TERM
+
+git diff --cached --name-only -z --diff-filter=ACM -- '*.ts' '*.tsx' >"$list"
+
+[ -s "$list" ] || exit 0
+
+xargs -0 ./node_modules/.bin/eslint -- <"$list"
+xargs -0 ./node_modules/.bin/prettier --check -- <"$list"
