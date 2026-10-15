@@ -3,7 +3,11 @@ import { AccessList } from "@/modules/identity/application/AccessList.ts";
 import { GetSessionUser } from "@/modules/identity/application/GetSessionUser.ts";
 import { Hosts } from "@/modules/identity/domain/Hosts.ts";
 import { DiscordIdentity } from "@/modules/identity/domain/DiscordIdentity.ts";
-import { Session, SESSION_LIFETIME_MS } from "@/modules/identity/domain/Session.ts";
+import {
+  Session,
+  SESSION_LIFETIME_MS,
+  SESSION_RENEWAL_INTERVAL_MS,
+} from "@/modules/identity/domain/Session.ts";
 import { User } from "@/modules/identity/domain/User.ts";
 import {
   ADA_DISCORD_ID,
@@ -57,6 +61,39 @@ describe("GetSessionUser", () => {
     );
   });
 
+  test("renews a session still in use, so its end moves a full lifetime past this visit", async () => {
+    clock.advance(SESSION_RENEWAL_INTERVAL_MS);
+    const visit = clock.now().getTime();
+
+    const result = await lookup([ADA_DISCORD_ID]).execute("token-1");
+
+    expect(result.status === "signed_in" ? result.expiresAt.getTime() : null).toBe(
+      visit + SESSION_LIFETIME_MS,
+    );
+    expect((await sessions.findByTokenHash("hash(token-1)"))?.expiresAt.getTime()).toBe(
+      visit + SESSION_LIFETIME_MS,
+    );
+  });
+
+  test("writes no renewal within a day of the last one", async () => {
+    clock.advance(SESSION_RENEWAL_INTERVAL_MS - 1);
+
+    await lookup([ADA_DISCORD_ID]).execute("token-1");
+
+    expect((await sessions.findByTokenHash("hash(token-1)"))?.expiresAt.getTime()).toBe(
+      NOW.getTime() + SESSION_LIFETIME_MS,
+    );
+  });
+
+  test("never signs out somebody who comes back before a lifetime runs out", async () => {
+    const getSessionUser = lookup([ADA_DISCORD_ID]);
+
+    for (let visit = 0; visit < 5; visit += 1) {
+      clock.advance(SESSION_LIFETIME_MS - 1);
+      expect((await getSessionUser.execute("token-1")).status).toBe("signed_in");
+    }
+  });
+
   test("says signed out with no token, a blank one, or an unknown one", async () => {
     const getSessionUser = lookup([ADA_DISCORD_ID]);
 
@@ -72,7 +109,7 @@ describe("GetSessionUser", () => {
     expect(await sessions.findByTokenHash("hash(token-1)")).toBeNull();
   });
 
-  /** Taking someone off the list must not wait 30 days for their session to run out. */
+  /** Taking someone off the list must not wait for their session to run out. */
   test("says not allowed for someone on neither list, and deletes their session", async () => {
     expect(await lookup([]).execute("token-1")).toEqual({ status: "not_allowed" });
     expect(await sessions.findByTokenHash("hash(token-1)")).toBeNull();

@@ -1,5 +1,14 @@
-/** Measured from when the session was opened, not from last use. */
-export const SESSION_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * How long a session lives without being used: 400 days, the longest a
+ * browser keeps a cookie. Each visit renews it, so somebody who keeps coming
+ * back is never signed out.
+ */
+export const SESSION_LIFETIME_MS = 400 * DAY_MS;
+
+/** Renewed at most once a day, so using the room is not a database write per request. */
+export const SESSION_RENEWAL_INTERVAL_MS = DAY_MS;
 
 export interface SessionSnapshot {
   tokenHash: string;
@@ -32,6 +41,26 @@ export class Session {
   /** Expiry is inclusive: a session is dead the instant it reaches expiresAt. */
   isExpired(now: Date): boolean {
     return now.getTime() >= this.expiresAt.getTime();
+  }
+
+  /**
+   * True once a renewal interval has passed since the session was opened or
+   * last renewed. Read from the expiry, so a session opened under a shorter
+   * lifetime is due at once.
+   */
+  isDueForRenewal(now: Date): boolean {
+    const renewedAt = this.expiresAt.getTime() - SESSION_LIFETIME_MS;
+    return now.getTime() - renewedAt >= SESSION_RENEWAL_INTERVAL_MS;
+  }
+
+  /** The same session, alive for another full lifetime from `now`. */
+  renewed(now: Date): Session {
+    return new Session(
+      this.tokenHash,
+      this.userId,
+      this.createdAt,
+      new Date(now.getTime() + SESSION_LIFETIME_MS),
+    );
   }
 
   toSnapshot(): SessionSnapshot {

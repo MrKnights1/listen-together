@@ -30,6 +30,7 @@ export function LoginPage({ error }: { error: string | null }) {
           One queue, one song, everyone hearing it at the same moment. Sign in with the Discord
           account the room knows you by.
         </p>
+        <p className="login__note">You stay signed in on this device until you sign out.</p>
 
         {message !== null && (
           <p className="notice" role="alert">

@@ -5,7 +5,7 @@ import {
 } from "@/modules/identity/domain/AccessRequest.ts";
 import { DiscordIdentity } from "@/modules/identity/domain/DiscordIdentity.ts";
 import type { Guest } from "@/modules/identity/domain/Guest.ts";
-import { Session } from "@/modules/identity/domain/Session.ts";
+import { Session, SESSION_LIFETIME_MS } from "@/modules/identity/domain/Session.ts";
 import { User } from "@/modules/identity/domain/User.ts";
 import type { AccessRequestRepository } from "@/modules/identity/domain/ports/AccessRequestRepository.ts";
 import type { GuestRepository } from "@/modules/identity/domain/ports/GuestRepository.ts";
@@ -141,6 +141,28 @@ export function runRepositoryContract(name: string, create: () => Repositories):
       );
     });
 
+    test("stores a renewed session's new expiry, and nothing else about it", async () => {
+      const session = Session.open("hash-1", "user-1", NOW);
+      await sessions.save(session);
+      const renewed = session.renewed(new Date(NOW.getTime() + 86_400_000));
+
+      await sessions.renew(renewed);
+
+      expect((await sessions.findByTokenHash("hash-1"))?.toSnapshot()).toEqual(
+        renewed.toSnapshot(),
+      );
+    });
+
+    test("does not bring back a session deleted before its renewal is written", async () => {
+      const session = Session.open("hash-1", "user-1", NOW);
+      await sessions.save(session);
+      await sessions.delete("hash-1");
+
+      await sessions.renew(session.renewed(new Date(NOW.getTime() + 86_400_000)));
+
+      expect(await sessions.findByTokenHash("hash-1")).toBeNull();
+    });
+
     test("forgets a deleted session", async () => {
       await sessions.save(Session.open("hash-1", "user-1", NOW));
 
@@ -157,7 +179,7 @@ export function runRepositoryContract(name: string, create: () => Repositories):
 
     test("purges only the sessions that have actually expired", async () => {
       await sessions.save(
-        Session.open("hash-old", "user-1", new Date(NOW.getTime() - 40 * 86_400_000)),
+        Session.open("hash-old", "user-1", new Date(NOW.getTime() - SESSION_LIFETIME_MS - 1)),
       );
       await sessions.save(Session.open("hash-fresh", "user-1", NOW));
 

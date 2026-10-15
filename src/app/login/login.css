@@ -44,6 +44,11 @@
   color: var(--text-2);
 }
 
+.login__note {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
 .discord-button {
   display: inline-flex;
   align-items: center;

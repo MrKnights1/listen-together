@@ -24,8 +24,12 @@ export type SessionLookup =
  * The single place a request is decided to be authenticated.
  *
  * The guest list is checked here as well as at sign-in, so taking somebody off
- * it takes effect on their next request rather than in up to 30 days.
- * Their session is deleted on the way out: it can never become valid again.
+ * it takes effect on their next request rather than whenever their session
+ * would have run out. Their session is deleted on the way out: it can never
+ * become valid again.
+ *
+ * A session still in use is renewed here too, so whoever keeps coming back is
+ * never signed out.
  */
 export class GetSessionUser {
   constructor(
@@ -42,7 +46,8 @@ export class GetSessionUser {
     const session = await this.sessions.findByTokenHash(this.tokens.hash(sessionToken));
     if (session === null) return { status: "signed_out" };
 
-    if (session.isExpired(this.clock.now())) {
+    const now = this.clock.now();
+    if (session.isExpired(now)) {
       await this.sessions.delete(session.tokenHash);
       return { status: "signed_out" };
     }
@@ -55,6 +60,9 @@ export class GetSessionUser {
       return { status: "not_allowed" };
     }
 
-    return { status: "signed_in", user, expiresAt: session.expiresAt };
+    const live = session.isDueForRenewal(now) ? session.renewed(now) : session;
+    if (live !== session) await this.sessions.renew(live);
+
+    return { status: "signed_in", user, expiresAt: live.expiresAt };
   }
 }

@@ -85,6 +85,10 @@ export class InMemorySessionRepository implements SessionRepository {
     this.byTokenHash.set(session.tokenHash, session);
   }
 
+  async renew(session: Session): Promise<void> {
+    if (this.byTokenHash.has(session.tokenHash)) this.byTokenHash.set(session.tokenHash, session);
+  }
+
   async findByTokenHash(tokenHash: string): Promise<Session | null> {
     return this.byTokenHash.get(tokenHash) ?? null;
   }

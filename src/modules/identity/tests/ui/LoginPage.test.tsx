@@ -18,6 +18,10 @@ describe("LoginPage", () => {
     expect(html).toContain("Listening room");
   });
 
+  test("says signing in lasts until you sign out", () => {
+    expect(markup()).toContain("You stay signed in on this device until you sign out.");
+  });
+
   test("says nothing about failure when there was none", () => {
     expect(markup()).not.toContain('role="alert"');
   });

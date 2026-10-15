@@ -178,6 +178,18 @@ describe("Discord sign-in over HTTP", () => {
     expect(Object.keys(body.user).sort()).toEqual(["avatarUrl", "id", "isAdmin", "name"]);
   });
 
+  test("hands the browser its session cookie again on every visit, for a full lifetime", async () => {
+    const { session } = await signIn();
+
+    const who = await call("/api/auth/session", { cookie: session });
+
+    expect(who.status).toBe(200);
+    expect(cookiePair(who, "mp_session")).toBe(session);
+    expect(cookieHeader(who, "mp_session")).toContain(`Max-Age=${400 * 24 * 60 * 60}`);
+    expect(cookieHeader(who, "mp_session")).toContain("HttpOnly");
+    expect(who.headers.get("cache-control")).toBe("no-store");
+  });
+
   test("stores a hash of the session token, never the token", async () => {
     const { session } = await signIn();
     const token = decodeURIComponent(session.split("=")[1] ?? "");

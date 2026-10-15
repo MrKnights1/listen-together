@@ -26,6 +26,13 @@ export class SqliteSessionRepository implements SessionRepository {
       );
   }
 
+  async renew(session: Session): Promise<void> {
+    const snapshot = session.toSnapshot();
+    this.db
+      .query("UPDATE sessions SET expires_at = ? WHERE token_hash = ?")
+      .run(snapshot.expiresAt.getTime(), snapshot.tokenHash);
+  }
+
   async findByTokenHash(tokenHash: string): Promise<Session | null> {
     const row = this.db
       .query<SessionRow, [string]>("SELECT * FROM sessions WHERE token_hash = ?")
