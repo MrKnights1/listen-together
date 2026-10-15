@@ -116,6 +116,8 @@ export function activityLine(entry: ActivityEntry): string {
         : entry.detail.mode === "one"
           ? "set repeat to this song"
           : "set repeat to the whole queue";
+    case "shuffle_set":
+      return entry.detail.on === true ? "turned shuffle on" : "turned shuffle off";
   }
 }
 

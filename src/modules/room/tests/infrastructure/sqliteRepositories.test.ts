@@ -60,7 +60,41 @@ describe("SqliteRoomRepository", () => {
       queue: ["a1", "a2", "b1", "a3"],
       current: saved.current,
       repeat: "all",
+      shuffle: false,
     });
+  });
+
+  /** Saved before shuffle became a switch: no `shuffle` at all, and it was off. */
+  test("loads a room saved before shuffle was a switch with shuffle off", async () => {
+    const db = openDatabase(":memory:");
+    migrate(db);
+    const saved = { version: 3, entries: {}, queue: [], current: null, repeat: "off" as const };
+    db.query(
+      "INSERT INTO room_state (id, state, saved_at, clean_shutdown) VALUES (1, ?, 0, 1)",
+    ).run(JSON.stringify(saved));
+
+    const loaded = await new SqliteRoomRepository(db).load();
+
+    expect(loaded?.state).toEqual({ ...saved, shuffle: false });
+  });
+
+  test("refuses a saved room whose shuffle is not on or off", async () => {
+    const db = openDatabase(":memory:");
+    migrate(db);
+    db.query(
+      "INSERT INTO room_state (id, state, saved_at, clean_shutdown) VALUES (1, ?, 0, 1)",
+    ).run(
+      JSON.stringify({
+        version: 3,
+        entries: {},
+        queue: [],
+        current: null,
+        repeat: "off",
+        shuffle: "yes",
+      }),
+    );
+
+    await expect(new SqliteRoomRepository(db).load()).rejects.toThrow("expected shape");
   });
 
   test("the schema allows exactly one room", () => {

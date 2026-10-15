@@ -170,7 +170,7 @@ describe("RoomEngine — the end-of-song alarm", () => {
     expect(current()).toBeNull();
     expect(timers.pending).toBe(0);
     expect(updates.at(-1)?.events).toEqual([
-      { type: "advanced", reason: "ended", at: NOW + 3 * (SONG + TRACK_END_GRACE_MS) },
+      { type: "advanced", reason: "ended", next: null, at: NOW + 3 * (SONG + TRACK_END_GRACE_MS) },
     ]);
   });
 

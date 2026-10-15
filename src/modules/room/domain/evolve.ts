@@ -9,9 +9,9 @@ function withoutEntry(state: RoomState, entryId: string): RoomState {
 
 /**
  * Moves the room on from its current song: replay it, re-queue it at the end,
- * or drop it; then start the first song in the queue. A paused room stays
- * paused on the next song — somebody paused it, and skipping is not a reason
- * to start playing.
+ * or drop it; then start the song the event names. A paused room stays paused
+ * on the next song — somebody paused it, and skipping is not a reason to start
+ * playing.
  */
 function advance(state: RoomState, reason: RoomEvent & { type: "advanced" }): RoomState {
   const current = state.current;
@@ -36,12 +36,13 @@ function advance(state: RoomState, reason: RoomEvent & { type: "advanced" }): Ro
   }
 
   const status = current?.status === "paused" && reason.reason !== "ended" ? "paused" : "playing";
-  const [next, ...rest] = room.queue;
-  if (next === undefined) return { ...room, current: null };
+  const next = reason.next;
+  if (next === null) return { ...room, current: null };
+  if (!room.queue.includes(next)) throw new Error(`The next entry ${next} is not queued.`);
 
   return {
     ...room,
-    queue: rest,
+    queue: room.queue.filter((entryId) => entryId !== next),
     current: { entryId: next, status, positionMs: 0, anchorAt: reason.at },
   };
 }
@@ -104,6 +105,9 @@ export function evolve(state: RoomState, event: RoomEvent): RoomState {
 
     case "repeat_set":
       return { ...state, repeat: event.mode };
+
+    case "shuffle_set":
+      return { ...state, shuffle: event.on };
   }
 }
 

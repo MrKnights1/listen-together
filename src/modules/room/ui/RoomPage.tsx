@@ -223,9 +223,10 @@ export function RoomPage({ me }: { me: SessionUser }) {
             <TransportControls
               status={current === null ? "idle" : current.status}
               repeat={state.repeat}
+              shuffle={state.shuffle}
               onToggle={togglePause}
               onSkip={() => current !== null && control({ type: "skip", entryId: current.entryId })}
-              onShuffle={() => control({ type: "shuffle", ownerId: null })}
+              onShuffle={(on) => control({ type: "set_shuffle", on })}
               onRepeat={(mode: RepeatMode) => control({ type: "repeat", mode })}
             />
             <VolumeControl
@@ -257,6 +258,7 @@ export function RoomPage({ me }: { me: SessionUser }) {
           )}
           <UpNextList
             rows={rows}
+            shuffle={state.shuffle}
             people={people}
             you={room.you}
             onMove={moveEntry}

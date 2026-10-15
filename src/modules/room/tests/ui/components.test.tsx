@@ -61,6 +61,7 @@ describe("TransportControls", () => {
       <TransportControls
         status="paused"
         repeat="off"
+        shuffle={false}
         onToggle={noop}
         onSkip={noop}
         onShuffle={noop}
@@ -78,6 +79,7 @@ describe("TransportControls", () => {
       <TransportControls
         status="playing"
         repeat="off"
+        shuffle={false}
         onToggle={noop}
         onSkip={noop}
         onShuffle={noop}
@@ -87,7 +89,7 @@ describe("TransportControls", () => {
 
     expect(html).toContain('aria-label="Pause"');
     expect(html).toContain('aria-label="Skip"');
-    expect(html).toContain('aria-label="Shuffle all"');
+    expect(html).toContain('aria-label="Shuffle is off"');
     expect(html).toContain('title="Pause"');
     expect(html).not.toContain("Resume");
   });
@@ -97,6 +99,7 @@ describe("TransportControls", () => {
       <TransportControls
         status="playing"
         repeat="one"
+        shuffle={false}
         onToggle={noop}
         onSkip={noop}
         onShuffle={noop}
@@ -108,11 +111,34 @@ describe("TransportControls", () => {
     expect(html).toContain('aria-pressed="true"');
   });
 
+  test("shows shuffle as a switch, pressed and named for what it does while on", () => {
+    const render = (shuffle: boolean) =>
+      renderToStaticMarkup(
+        <TransportControls
+          status="playing"
+          repeat="off"
+          shuffle={shuffle}
+          onToggle={noop}
+          onSkip={noop}
+          onShuffle={noop}
+          onRepeat={noop}
+        />,
+      );
+
+    expect(render(true)).toContain(
+      'aria-label="Shuffle is on" title="Shuffle is on" aria-pressed="true"',
+    );
+    expect(render(false)).toContain(
+      'aria-label="Shuffle is off" title="Shuffle is off" aria-pressed="false"',
+    );
+  });
+
   test("disables pause and skip when nothing plays", () => {
     const html = renderToStaticMarkup(
       <TransportControls
         status="idle"
         repeat="all"
+        shuffle={false}
         onToggle={noop}
         onSkip={noop}
         onShuffle={noop}
@@ -203,6 +229,7 @@ describe("UpNextList", () => {
     const html = renderToStaticMarkup(
       <UpNextList
         rows={[row("a1", "ada"), row("b1", "bob")]}
+        shuffle={false}
         people={people}
         you="ada"
         onMove={noop}
@@ -220,6 +247,7 @@ describe("UpNextList", () => {
     const html = renderToStaticMarkup(
       <UpNextList
         rows={[row("a1", "ada"), row("b1", "bob"), row("a2", "ada")]}
+        shuffle={false}
         people={people}
         you="ada"
         onMove={noop}
@@ -237,6 +265,7 @@ describe("UpNextList", () => {
     const html = renderToStaticMarkup(
       <UpNextList
         rows={[row("a1", "ada")]}
+        shuffle={false}
         people={people}
         you="ada"
         onMove={noop}
@@ -253,6 +282,7 @@ describe("UpNextList", () => {
     const html = renderToStaticMarkup(
       <UpNextList
         rows={[row("a1", "ada"), row("b1", "bob"), row("a2", "ada")]}
+        shuffle={false}
         people={people}
         you="ada"
         onMove={noop}
@@ -274,6 +304,7 @@ describe("UpNextList", () => {
     const html = renderToStaticMarkup(
       <UpNextList
         rows={[row("a1", "ada")]}
+        shuffle={false}
         people={people}
         you="ada"
         onMove={noop}
@@ -287,11 +318,31 @@ describe("UpNextList", () => {
     expect(html.match(/disabled=""/g)?.length).toBeGreaterThanOrEqual(2);
   });
 
+  test("with shuffle on, is a pool to draw from: no numbers, and it says so", () => {
+    const html = renderToStaticMarkup(
+      <UpNextList
+        rows={[row("a1", "ada"), row("b1", "bob")]}
+        shuffle={true}
+        people={people}
+        you="ada"
+        onMove={noop}
+        onRemove={noop}
+        onShuffleMine={noop}
+      />,
+    );
+
+    expect(html).toContain("Shuffle is on: each next song is picked at random.");
+    expect(html).not.toContain("Songs play in the order they were added.");
+    expect(html).toContain('<span class="row__n" aria-hidden="true"></span>');
+    expect(html).not.toContain('<span class="row__n" aria-hidden="true">1</span>');
+  });
+
   test("invites a paste when nothing is queued", () => {
     expect(
       renderToStaticMarkup(
         <UpNextList
           rows={[]}
+          shuffle={false}
           people={people}
           you="ada"
           onMove={noop}

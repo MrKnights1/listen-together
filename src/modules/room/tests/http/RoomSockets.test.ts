@@ -197,7 +197,25 @@ describe("commands", () => {
     await say(bob, { t: "cmd", id: "c2", op: { type: "skip", entryId: "entry-1" } });
 
     expect(bob.last("ack")).toEqual({ t: "ack", id: "c2", result: null });
-    expect(ada.last("ev")?.events).toEqual([{ type: "advanced", reason: "skipped", at: NOW }]);
+    expect(ada.last("ev")?.events).toEqual([
+      { type: "advanced", reason: "skipped", next: "entry-2", at: NOW },
+    ]);
+  });
+
+  test("anyone may turn shuffle on for everyone, and the feed says who", async () => {
+    const ada = await connect("ada");
+    const bob = await connect("bob");
+
+    await say(ada, { t: "cmd", id: "c1", op: { type: "set_shuffle", on: true } });
+
+    expect(ada.last("ack")).toEqual({ t: "ack", id: "c1", result: null });
+    expect(bob.last("ev")?.events).toEqual([{ type: "shuffle_set", on: true }]);
+    expect(bob.last("ev")?.activity).toMatchObject({
+      actorId: "ada",
+      kind: "shuffle_set",
+      detail: { on: true },
+    });
+    expect(engine.snapshot().state.shuffle).toBe(true);
   });
 
   test("a command aimed at a song that has moved on is refused as stale", async () => {

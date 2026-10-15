@@ -13,7 +13,8 @@ export type ActivityKind =
   | "seeked"
   | "moved"
   | "shuffled"
-  | "repeat_set";
+  | "repeat_set"
+  | "shuffle_set";
 
 export interface ActivityDetail {
   count?: number;
@@ -22,7 +23,9 @@ export interface ActivityDetail {
   title?: string;
   positionMs?: number;
   mode?: RepeatMode;
+  /** Null on lines from before shuffle became a switch: the whole queue was shuffled once. */
   ownerId?: string | null;
+  on?: boolean;
 }
 
 export interface NewActivity {
@@ -91,6 +94,8 @@ export function describeActivity(
       return line("shuffled", { ownerId: command.ownerId });
     case "repeat":
       return line("repeat_set", { mode: command.mode });
+    case "set_shuffle":
+      return line("shuffle_set", { on: command.on });
     case "track_ended":
       return null;
   }

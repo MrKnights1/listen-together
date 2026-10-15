@@ -71,9 +71,11 @@ function decodeOp(op: unknown): CommandOp | null {
   }
   if (type === "shuffle") {
     const ownerId = op["ownerId"];
-    return hasOnly(op, ["type", "ownerId"]) && (ownerId === null || isId(ownerId))
-      ? { type, ownerId }
-      : null;
+    return hasOnly(op, ["type", "ownerId"]) && isId(ownerId) ? { type, ownerId } : null;
+  }
+  if (type === "set_shuffle") {
+    const on = op["on"];
+    return hasOnly(op, ["type", "on"]) && typeof on === "boolean" ? { type, on } : null;
   }
   if (type === "repeat") {
     const mode = op["mode"];

@@ -59,6 +59,7 @@ const welcome: ServerMessage = {
       queue: [],
       current: null,
       repeat: "off",
+      shuffle: false,
     },
     tracks: [],
     activity: [],

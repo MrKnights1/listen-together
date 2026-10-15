@@ -13,7 +13,12 @@ export type AdvanceReason = "started" | "ended" | "skipped" | "removed";
  */
 export type RoomEvent =
   | { type: "queued"; entries: QueueEntry[] }
-  | { type: "advanced"; reason: AdvanceReason; at: number }
+  /**
+   * `next` is the entry that plays now, chosen when the command was decided —
+   * at random while shuffle is on — so every fold lands on the same song.
+   * Null when nothing is left to play.
+   */
+  | { type: "advanced"; reason: AdvanceReason; next: string | null; at: number }
   | { type: "paused"; positionMs: number; at: number }
   | { type: "resumed"; at: number }
   | { type: "seeked"; positionMs: number; at: number }
@@ -21,4 +26,5 @@ export type RoomEvent =
   | { type: "moved"; entryId: string; toIndex: number }
   /** The whole queue in its new order. */
   | { type: "shuffled"; queue: string[] }
-  | { type: "repeat_set"; mode: RepeatMode };
+  | { type: "repeat_set"; mode: RepeatMode }
+  | { type: "shuffle_set"; on: boolean };

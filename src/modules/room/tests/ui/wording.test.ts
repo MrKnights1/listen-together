@@ -90,6 +90,25 @@ describe("wording", () => {
   });
 });
 
+describe("shuffle in the feed", () => {
+  test("says who turned shuffle on or off", () => {
+    const line = (on: boolean) =>
+      activityLine({ id: 1, at: 0, actorId: "a", kind: "shuffle_set", detail: { on } });
+
+    expect(line(true)).toBe("turned shuffle on");
+    expect(line(false)).toBe("turned shuffle off");
+  });
+
+  /** The feed keeps a month: lines from the one-time Shuffle all are still in it. */
+  test("still reads a whole-queue shuffle from before shuffle was a switch", () => {
+    const line = (ownerId: string | null) =>
+      activityLine({ id: 1, at: 0, actorId: "a", kind: "shuffled", detail: { ownerId } });
+
+    expect(line(null)).toBe("shuffled the queue");
+    expect(line("a")).toBe("shuffled their songs");
+  });
+});
+
 describe("ownerColor", () => {
   test("gives a person the same colour every time", () => {
     expect(ownerColor("user-ada")).toBe(ownerColor("user-ada"));

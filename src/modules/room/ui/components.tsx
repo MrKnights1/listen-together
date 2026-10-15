@@ -156,6 +156,7 @@ const REPEAT_LABEL: Record<RepeatMode, string> = {
 export function TransportControls({
   status,
   repeat,
+  shuffle,
   onToggle,
   onSkip,
   onShuffle,
@@ -163,11 +164,13 @@ export function TransportControls({
 }: {
   status: "playing" | "paused" | "idle";
   repeat: RepeatMode;
+  shuffle: boolean;
   onToggle: () => void;
   onSkip: () => void;
-  onShuffle: () => void;
+  onShuffle: (on: boolean) => void;
   onRepeat: (mode: RepeatMode) => void;
 }) {
+  const shuffleLabel = shuffle ? "Shuffle is on" : "Shuffle is off";
   const idle = status === "idle";
   const toggle = status === "playing" ? "Pause" : "Resume";
   return (
@@ -198,9 +201,10 @@ export function TransportControls({
         <button
           type="button"
           className="icon-button"
-          aria-label="Shuffle all"
-          title="Shuffle all"
-          onClick={onShuffle}
+          aria-label={shuffleLabel}
+          title={shuffleLabel}
+          aria-pressed={shuffle}
+          onClick={() => onShuffle(!shuffle)}
         >
           <Icon name="shuffle" />
         </button>
@@ -283,6 +287,7 @@ export interface QueueRow {
  */
 export const UpNextList = memo(function UpNextList({
   rows,
+  shuffle,
   people,
   you,
   onMove,
@@ -290,6 +295,8 @@ export const UpNextList = memo(function UpNextList({
   onShuffleMine,
 }: {
   rows: QueueRow[];
+  /** While on, the list is a pool to draw from, not a running order: it drops its numbers. */
+  shuffle: boolean;
   people: Record<string, Person>;
   you: string | null;
   onMove: (entryId: string, toIndex: number) => void;
@@ -311,7 +318,11 @@ export const UpNextList = memo(function UpNextList({
           Shuffle my songs
         </button>
       </div>
-      <p className="upnext__note">Songs play in the order they were added.</p>
+      <p className="upnext__note">
+        {shuffle
+          ? "Shuffle is on: each next song is picked at random."
+          : "Songs play in the order they were added."}
+      </p>
       {rows.length === 0 ? (
         <p className="empty">Nothing queued. Paste a link to add the next song.</p>
       ) : (
@@ -326,7 +337,7 @@ export const UpNextList = memo(function UpNextList({
                 style={{ "--owner": ownerColor(row.ownerId) } as React.CSSProperties}
               >
                 <span className="row__n" aria-hidden="true">
-                  {index + 1}
+                  {shuffle ? null : index + 1}
                 </span>
                 {row.track?.artworkUrl ? (
                   <img

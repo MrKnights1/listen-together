@@ -21,7 +21,9 @@ export type RoomCommand =
   | { type: "skip"; entryId: string }
   | { type: "remove"; entryId: string }
   | { type: "move"; entryId: string; toIndex: number }
-  | { type: "shuffle"; ownerId: string | null }
+  /** Mixes one person's songs among the places they already hold. */
+  | { type: "shuffle"; ownerId: string }
   | { type: "repeat"; mode: RepeatMode }
+  | { type: "set_shuffle"; on: boolean }
   | { type: "track_ended"; entryId: string }
   | { type: "auto_pause" };

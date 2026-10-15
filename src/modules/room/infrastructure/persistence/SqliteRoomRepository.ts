@@ -55,7 +55,10 @@ function parseRoomState(json: string): RoomState {
   const queue: unknown[] = Array.isArray(value["queue"])
     ? (value["queue"] as unknown[])
     : fromTurns(value);
+  // A room saved before shuffle became a switch had no such switch: it was off.
+  const shuffle = "shuffle" in value ? value["shuffle"] : false;
   if (
+    typeof shuffle !== "boolean" ||
     typeof value["version"] !== "number" ||
     !isRecord(value["entries"]) ||
     !queue.every((entryId): entryId is string => typeof entryId === "string") ||
@@ -71,6 +74,7 @@ function parseRoomState(json: string): RoomState {
     queue,
     current: value["current"] as RoomState["current"],
     repeat: value["repeat"] as RoomState["repeat"],
+    shuffle,
   };
 }
 

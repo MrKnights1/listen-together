@@ -64,12 +64,8 @@ function randomCommand(
       now,
     };
   }
-  if (roll < 75) {
-    return {
-      command: { type: "shuffle", ownerId: random.int(3) === 0 ? null : pick(random, OWNERS) },
-      now,
-    };
-  }
+  if (roll < 73) return { command: { type: "shuffle", ownerId: pick(random, OWNERS) }, now };
+  if (roll < 75) return { command: { type: "set_shuffle", on: random.int(2) === 0 }, now };
   if (roll < 80)
     return { command: { type: "repeat", mode: pick(random, ["off", "one", "all"] as const) }, now };
   if (roll < 87) {
@@ -165,14 +161,16 @@ describe("room invariants under random commands", () => {
             failures.push(`${where}: ${problem}`);
         }
 
-        // Moving on — a skip, or a song ending without repeat-one — plays the head of the queue.
+        // Moving on — a skip, or a song ending without repeat-one — plays the head of the
+        // queue, or with shuffle on any song that was waiting, never the one that just played.
         const movesOn =
           decision.events.some((event) => event.type === "advanced") &&
           !(generated.command.type === "track_ended" && before.repeat === "one");
         const head = before.queue[0];
         if (movesOn && generated.command.type !== "add" && head !== undefined) {
-          if (state.current?.entryId !== head)
-            failures.push(`${where}: did not play the next song`);
+          const playing = state.current?.entryId ?? "none";
+          const next = before.shuffle ? before.queue.includes(playing) : playing === head;
+          if (!next) failures.push(`${where}: did not play a waiting song`);
         }
       }
     }

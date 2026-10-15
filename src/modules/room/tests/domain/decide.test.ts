@@ -329,20 +329,6 @@ describe("shuffle", () => {
     expect<(string | undefined)[]>(shuffled.queue).toEqual([a3, b1, a2, b2, a1]);
   });
 
-  test("shuffling everybody keeps every song exactly once", () => {
-    const state = roomWith(["cy", 1], ["ada", 5], ["bob", 5]);
-
-    const shuffled = apply(
-      state,
-      { type: "shuffle", ownerId: null },
-      NOW,
-      new ScriptedRandom([3, 1, 2, 0, 4, 2, 1, 0]),
-    );
-
-    expect(shuffled.queue).not.toEqual(state.queue);
-    expect([...shuffled.queue].sort()).toEqual([...state.queue].sort());
-  });
-
   test("a list of one has nothing to shuffle", () => {
     expect(
       decide(roomWith(["cy", 1], ["ada", 1]), { type: "shuffle", ownerId: "ada" }, context()),

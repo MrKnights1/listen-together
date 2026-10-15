@@ -43,8 +43,9 @@ export type CommandOp =
   | { type: "pause" | "resume" | "skip" | "remove"; entryId: string }
   | { type: "seek"; entryId: string; positionMs: number }
   | { type: "move"; entryId: string; toIndex: number }
-  | { type: "shuffle"; ownerId: string | null }
-  | { type: "repeat"; mode: RepeatMode };
+  | { type: "shuffle"; ownerId: string }
+  | { type: "repeat"; mode: RepeatMode }
+  | { type: "set_shuffle"; on: boolean };
 
 export type ClientMessage =
   /** `c` is the browser's own clock when it sent this, echoed back to measure the round trip. */

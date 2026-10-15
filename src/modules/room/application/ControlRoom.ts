@@ -5,7 +5,18 @@ import type { RoomEngine } from "./RoomEngine.ts";
 /** The commands a person may send. Adding has its own use case; the rest belong to the room's timers. */
 export type PersonCommand = Extract<
   RoomCommand,
-  { type: "pause" | "resume" | "seek" | "skip" | "remove" | "move" | "shuffle" | "repeat" }
+  {
+    type:
+      | "pause"
+      | "resume"
+      | "seek"
+      | "skip"
+      | "remove"
+      | "move"
+      | "shuffle"
+      | "repeat"
+      | "set_shuffle";
+  }
 >;
 
 const PERSON_COMMANDS = new Set<RoomCommand["type"]>([
@@ -17,6 +28,7 @@ const PERSON_COMMANDS = new Set<RoomCommand["type"]>([
   "move",
   "shuffle",
   "repeat",
+  "set_shuffle",
 ]);
 
 /** Everyone in the room may pause, skip, seek and rearrange for everyone. */

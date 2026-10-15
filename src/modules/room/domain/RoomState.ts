@@ -29,14 +29,19 @@ export interface RoomState {
   version: number;
   /** Every entry in the room: the current one and all queued ones. */
   entries: Record<string, QueueEntry>;
-  /** The queued entries, in the order they will play: the order they were added, unless moved. Never holds the current entry. */
+  /**
+   * The queued entries in the order they were added, unless moved: the order
+   * they play while shuffle is off. Never holds the current entry.
+   */
   queue: string[];
   current: NowPlaying | null;
   repeat: RepeatMode;
+  /** While on, each next song is drawn at random from the queue instead of taken from its top. */
+  shuffle: boolean;
 }
 
 export function emptyRoom(): RoomState {
-  return { version: 0, entries: {}, queue: [], current: null, repeat: "off" };
+  return { version: 0, entries: {}, queue: [], current: null, repeat: "off", shuffle: false };
 }
 
 /** Where a queued entry is in the line, or -1 if it is not queued. */

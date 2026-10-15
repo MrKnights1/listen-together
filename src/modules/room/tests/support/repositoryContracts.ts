@@ -23,6 +23,7 @@ export function runRoomRepositoryContracts(
       let state = apply(emptyRoom(), { type: "add", ownerId: "ada", tracks: songs("ada", 3) });
       state = apply(state, { type: "add", ownerId: "bob", tracks: songs("bob", 2) });
       state = apply(state, { type: "repeat", mode: "all" });
+      state = apply(state, { type: "set_shuffle", on: true });
 
       await rooms.save(state, 1234, false);
 
