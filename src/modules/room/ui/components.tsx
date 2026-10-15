@@ -4,25 +4,52 @@ import type { ListenerView, Person } from "@/modules/room/contract/messages.ts";
 import type { ActivityEntry } from "@/modules/room/domain/activity.ts";
 import type { RepeatMode } from "@/modules/room/domain/RoomState.ts";
 import type { TrackInfo } from "@/modules/room/domain/TrackInfo.ts";
+import { Icon } from "@/shared/ui/Icon.tsx";
 import type { ConnectionState } from "./RoomConnection.ts";
 import { ownerColor } from "./ownerColor.ts";
 import { activityLine, formatDuration, presenceLine } from "./wording.ts";
 
-function Avatar({ person }: { person: Person | undefined }) {
+function Avatar({ person, size }: { person: Person | undefined; size: number }) {
   // Decorative: the name is always written beside it.
   return person === undefined ? (
-    <span className="avatar avatar--unknown" aria-hidden="true" />
+    <span
+      className="avatar avatar--unknown"
+      style={{ width: size, height: size }}
+      aria-hidden="true"
+    />
   ) : (
-    <img className="avatar" src={person.avatarUrl} alt="" width={24} height={24} loading="lazy" />
+    <img
+      className="avatar"
+      src={person.avatarUrl}
+      alt=""
+      width={size}
+      height={size}
+      loading="lazy"
+    />
   );
 }
 
 export function OwnerChip({ ownerId, person }: { ownerId: string; person: Person | undefined }) {
   return (
     <span className="owner" style={{ "--owner": ownerColor(ownerId) } as React.CSSProperties}>
-      <Avatar person={person} />
+      <Avatar person={person} size={22} />
       <span className="owner__name">{person?.name ?? "Someone"}</span>
     </span>
+  );
+}
+
+/**
+ * The current song's artwork, blurred into a glow behind "now playing". A
+ * layer of its own under everything else: it never reaches the player tile.
+ */
+export function ArtworkGlow({ artworkUrl }: { artworkUrl: string | null }) {
+  return (
+    <>
+      {artworkUrl !== null && (
+        <img className="hero__glow" src={artworkUrl} alt="" aria-hidden="true" />
+      )}
+      <div className="hero__scrim" aria-hidden="true" />
+    </>
   );
 }
 
@@ -39,13 +66,15 @@ export function NowPlaying({
     return (
       <div className="now">
         <p className="now__title now__title--empty">Nothing is playing</p>
-        <p className="now__artist">Paste a YouTube link below to start the room.</p>
+        <p className="now__artist">Paste a YouTube link to start the room.</p>
       </div>
     );
   }
   return (
     <div className="now">
-      <p className="now__title">{track.title}</p>
+      <p className="now__title" title={track.title}>
+        {track.title}
+      </p>
       <p className="now__artist">{track.artist}</p>
       <p className="now__owner">
         Queued by <OwnerChip ownerId={ownerId} person={owner} />
@@ -90,7 +119,7 @@ export function SeekBar({
       <span className="seek__time">{formatDuration(shown)}</span>
       <input
         ref={inputRef}
-        className="seek__bar"
+        className="range"
         type="range"
         min={0}
         max={Math.max(1, Math.floor(durationMs / 1000))}
@@ -118,6 +147,10 @@ const REPEAT_LABEL: Record<RepeatMode, string> = {
   one: "Repeating this song",
 };
 
+/**
+ * Play and skip around a big round key, shuffle and repeat beside them. Two
+ * groups so each can sit where the layout wants it; both act for everyone.
+ */
 export function TransportControls({
   status,
   repeat,
@@ -134,26 +167,53 @@ export function TransportControls({
   onRepeat: (mode: RepeatMode) => void;
 }) {
   const idle = status === "idle";
+  const toggle = status === "playing" ? "Pause" : "Resume";
   return (
-    <div className="transport" role="group" aria-label="Room controls (for everyone)">
-      <button type="button" className="button button--primary" disabled={idle} onClick={onToggle}>
-        {status === "paused" ? "Resume" : "Pause"}
-      </button>
-      <button type="button" className="button" disabled={idle} onClick={onSkip}>
-        Skip
-      </button>
-      <button type="button" className="button" onClick={onShuffle}>
-        Shuffle all
-      </button>
-      <button
-        type="button"
-        className="button"
-        aria-pressed={repeat !== "off"}
-        onClick={() => onRepeat(REPEAT_NEXT[repeat])}
-      >
-        {REPEAT_LABEL[repeat]}
-      </button>
-    </div>
+    <>
+      <div className="transport" role="group" aria-label="Room playback (for everyone)">
+        <button
+          type="button"
+          className="play"
+          disabled={idle}
+          aria-label={toggle}
+          title={toggle}
+          onClick={onToggle}
+        >
+          <Icon name={status === "playing" ? "pause" : "play"} />
+        </button>
+        <button
+          type="button"
+          className="round"
+          disabled={idle}
+          aria-label="Skip"
+          title="Skip"
+          onClick={onSkip}
+        >
+          <Icon name="skip" />
+        </button>
+      </div>
+      <div className="modes" role="group" aria-label="Room order (for everyone)">
+        <button
+          type="button"
+          className="icon-button"
+          aria-label="Shuffle all"
+          title="Shuffle all"
+          onClick={onShuffle}
+        >
+          <Icon name="shuffle" />
+        </button>
+        <button
+          type="button"
+          className="icon-button"
+          aria-label={REPEAT_LABEL[repeat]}
+          title={REPEAT_LABEL[repeat]}
+          aria-pressed={repeat !== "off"}
+          onClick={() => onRepeat(REPEAT_NEXT[repeat])}
+        >
+          <Icon name={repeat === "one" ? "repeat-one" : "repeat"} />
+        </button>
+      </div>
+    </>
   );
 }
 
@@ -177,6 +237,7 @@ export function ListenButton({
     </button>
   ) : (
     <button type="button" className="button button--primary button--large" onClick={onStart}>
+      <Icon name="headphones" />
       Start listening
     </button>
   );
@@ -196,6 +257,7 @@ export function SyncNotice({
   if (!listening) return null;
   return (
     <p className={`sync sync--${status}`} role="status">
+      <span className="sync__dot" aria-hidden="true" />
       {presenceLine(true, status, errorCode)}
       {(status === "out_of_sync" || status === "error") && (
         <button type="button" className="link-button" onClick={onResync}>
@@ -233,31 +295,40 @@ export function UpNextList({
 }) {
   const mine = rows.filter((row) => row.ownerId === you).length;
   return (
-    <section className="panel upnext" aria-labelledby="upnext-heading" id="upnext">
-      <div className="panel__head">
+    <section className="upnext" aria-labelledby="upnext-heading" id="upnext">
+      <div className="upnext__head">
         <h2 id="upnext-heading">Up next</h2>
-        <button type="button" className="link-button" disabled={mine < 2} onClick={onShuffleMine}>
+        <button
+          type="button"
+          className="button button--small"
+          disabled={mine < 2}
+          onClick={onShuffleMine}
+        >
+          <Icon name="shuffle" />
           Shuffle my songs
         </button>
       </div>
-      <p className="panel__note">Turns rotate between everyone who added songs.</p>
+      <p className="upnext__note">Turns rotate between everyone who added songs.</p>
       {rows.length === 0 ? (
         <p className="empty">Nothing queued. Paste a link to add the next song.</p>
       ) : (
         <ol className="queue">
-          {rows.map((row) => {
+          {rows.map((row, index) => {
             const title = row.track?.title ?? "Unknown song";
             const owner = people[row.ownerId];
             const whose = row.ownerId === you ? "your" : `${owner?.name ?? "someone"}'s`;
             return (
               <li
                 key={row.entryId}
-                className="queue__row"
+                className="row"
                 style={{ "--owner": ownerColor(row.ownerId) } as React.CSSProperties}
               >
+                <span className="row__n" aria-hidden="true">
+                  {index + 1}
+                </span>
                 {row.track?.artworkUrl ? (
                   <img
-                    className="queue__art"
+                    className="row__art"
                     src={row.track.artworkUrl}
                     alt=""
                     width={64}
@@ -265,43 +336,49 @@ export function UpNextList({
                     loading="lazy"
                   />
                 ) : (
-                  <span className="queue__art" aria-hidden="true" />
+                  <span className="row__art" aria-hidden="true" />
                 )}
-                <div className="queue__text">
-                  <span className="queue__title">{title}</span>
-                  <span className="queue__meta">
-                    <OwnerChip ownerId={row.ownerId} person={owner} />
-                    <span className="queue__duration">{formatDuration(row.durationMs)}</span>
-                  </span>
-                </div>
-                <div className="queue__actions">
+                <span className="row__text">
+                  <span className="row__title">{title}</span>
+                  {row.track !== undefined && (
+                    <span className="row__artist">{row.track.artist}</span>
+                  )}
+                </span>
+                <span className="row__meta">
+                  <OwnerChip ownerId={row.ownerId} person={owner} />
+                  <span className="row__len">{formatDuration(row.durationMs)}</span>
+                </span>
+                <span className="row__actions">
                   <button
                     type="button"
                     className="icon-button"
                     disabled={row.laneIndex === 0}
                     aria-label={`Move ${title} earlier in ${whose} list`}
+                    title="Move earlier"
                     onClick={() => onMove(row.entryId, row.laneIndex - 1)}
                   >
-                    ▲
+                    <Icon name="up" />
                   </button>
                   <button
                     type="button"
                     className="icon-button"
                     disabled={row.laneIndex === row.laneLength - 1}
                     aria-label={`Move ${title} later in ${whose} list`}
+                    title="Move later"
                     onClick={() => onMove(row.entryId, row.laneIndex + 1)}
                   >
-                    ▼
+                    <Icon name="down" />
                   </button>
                   <button
                     type="button"
                     className="icon-button"
                     aria-label={`Remove ${title} from the queue`}
+                    title="Remove"
                     onClick={() => onRemove(row.entryId)}
                   >
-                    ✕
+                    <Icon name="remove" />
                   </button>
-                </div>
+                </span>
               </li>
             );
           })}
@@ -315,6 +392,7 @@ export function AddTrackForm({ onAdd }: { onAdd: (url: string) => Promise<string
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const added = message?.startsWith("Added") ?? false;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -328,16 +406,16 @@ export function AddTrackForm({ onAdd }: { onAdd: (url: string) => Promise<string
   }
 
   return (
-    <section className="panel" aria-labelledby="add-heading">
+    <section className="add" aria-labelledby="add-heading">
       <h2 id="add-heading">Add songs</h2>
-      <form className="add" onSubmit={(event) => void submit(event)}>
+      <form className="add__form" onSubmit={(event) => void submit(event)}>
         <label className="add__label" htmlFor="add-url">
           YouTube video or playlist link
         </label>
         <div className="add__row">
           <input
             id="add-url"
-            className="add__input"
+            className="input add__input"
             type="url"
             inputMode="url"
             autoComplete="off"
@@ -354,7 +432,8 @@ export function AddTrackForm({ onAdd }: { onAdd: (url: string) => Promise<string
           </button>
         </div>
       </form>
-      <p className="add__result" role="status">
+      <p className={added ? "add__result add__result--added" : "add__result"} role="status">
+        {added && <Icon name="check" />}
         {message}
       </p>
     </section>
@@ -364,24 +443,41 @@ export function AddTrackForm({ onAdd }: { onAdd: (url: string) => Promise<string
 export function ListenerList({
   listeners,
   people,
+  you,
 }: {
   listeners: ListenerView[];
   people: Record<string, Person>;
+  you: string | null;
 }) {
   return (
-    <section className="panel" aria-labelledby="listeners-heading">
+    <section className="people" aria-labelledby="listeners-heading">
       <h2 id="listeners-heading">Listening now</h2>
       <ul className="listeners">
-        {listeners.map((listener) => (
-          <li key={listener.userId} className="listeners__row">
-            <OwnerChip ownerId={listener.userId} person={people[listener.userId]} />
-            <span
-              className={`listeners__state listeners__state--${listener.listening ? listener.sync : "away"}`}
+        {listeners.map((listener) => {
+          const person = people[listener.userId];
+          const state = listener.listening ? listener.sync : "away";
+          return (
+            <li
+              key={listener.userId}
+              className="listener"
+              style={{ "--owner": ownerColor(listener.userId) } as React.CSSProperties}
             >
-              {presenceLine(listener.listening, listener.sync, listener.errorCode)}
-            </span>
-          </li>
-        ))}
+              <span className="face">
+                <Avatar person={person} size={36} />
+                <span className={`face__dot face__dot--${state}`} aria-hidden="true" />
+              </span>
+              <span className="listener__text">
+                <span className="listener__name">
+                  {person?.name ?? "Someone"}
+                  {listener.userId === you && <span className="listener__you"> (you)</span>}
+                </span>
+                <span className={`listener__state listener__state--${state}`}>
+                  {presenceLine(listener.listening, listener.sync, listener.errorCode)}
+                </span>
+              </span>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );
@@ -400,7 +496,7 @@ export function ActivityFeed({
 }) {
   const latestFirst = [...activity].reverse();
   return (
-    <section className="panel" aria-labelledby="activity-heading">
+    <section className="activity" aria-labelledby="activity-heading">
       <h2 id="activity-heading">Activity</h2>
       {latestFirst.length === 0 ? (
         <p className="empty">Nothing has happened yet.</p>
@@ -411,7 +507,7 @@ export function ActivityFeed({
               <time className="feed__time" dateTime={new Date(entry.at).toISOString()}>
                 {clockTime(entry.at)}
               </time>
-              <span>
+              <span className={entry.actorId === null ? "feed__system" : undefined}>
                 {entry.actorId !== null && (
                   <strong className="feed__who">{people[entry.actorId]?.name ?? "Someone"} </strong>
                 )}
@@ -434,6 +530,7 @@ export function ConnectionBanner({ state }: { state: ConnectionState }) {
   const text = CONNECTION_TEXT[state];
   return (
     <p className="banner" role="status" hidden={text === undefined}>
+      <Icon name="spinner" className="banner__spinner" />
       {text}
     </p>
   );

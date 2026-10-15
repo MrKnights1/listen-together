@@ -13,9 +13,12 @@ import type { CommandOp } from "@/modules/room/contract/messages.ts";
 import { positionAt } from "@/modules/room/domain/playback.ts";
 import type { RepeatMode } from "@/modules/room/domain/RoomState.ts";
 import { upcoming } from "@/modules/room/domain/upcoming.ts";
+import { BrandMark } from "@/shared/ui/BrandMark.tsx";
+import { Icon } from "@/shared/ui/Icon.tsx";
 import {
   ActivityFeed,
   AddTrackForm,
+  ArtworkGlow,
   ConnectionBanner,
   ListenButton,
   ListenerList,
@@ -146,10 +149,59 @@ export function RoomPage({ me }: { me: SessionUser }) {
       <a className="skip-link" href="#upnext">
         Skip to the queue
       </a>
-      <header className="nowbar" aria-label="Now playing">
-        <div className="nowbar__inner">
-          <PlayerTile hostRef={hostRef} idle={current === null} />
-          <div className="nowbar__main">
+      <div className="shell">
+        <div className="pane pane--rail">
+          <header className="brand">
+            <BrandMark className="brand__mark" />
+            <h1 className="brand__name">Listening room</h1>
+          </header>
+          <ListenerList listeners={room.listeners} people={people} you={room.you} />
+          <section className="me" aria-labelledby="me-heading">
+            <div>
+              <h2 id="me-heading">Your listening</h2>
+              <p className="me__note">Only you hear these. Nobody else&apos;s sound changes.</p>
+            </div>
+            {listening && (
+              <div className="me__listen">
+                <ListenButton
+                  listening={listening}
+                  onStart={() => setListening(true)}
+                  onStop={() => setListening(false)}
+                />
+                <SyncNotice
+                  listening={listening}
+                  status={player.status}
+                  errorCode={player.errorCode}
+                  onResync={player.resync}
+                />
+              </div>
+            )}
+            <VolumeControl
+              volume={audio.volume}
+              muted={audio.muted}
+              onVolume={(volume) => changeAudio({ ...audio, volume })}
+              onMuted={(muted) => changeAudio({ ...audio, muted })}
+            />
+            <div className="account">
+              <img className="account__avatar" src={me.avatarUrl} alt="" width={32} height={32} />
+              <div className="account__text">
+                <span className="account__who">
+                  Signed in as <strong>{me.name}</strong>
+                </span>
+                <span className="account__links">
+                  {me.isAdmin && <a href="/admin">Manage guests</a>}
+                  <SignOutButton />
+                </span>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <main className="pane pane--centre">
+          <ConnectionBanner state={connection} />
+          <section className="hero" aria-label="Now playing">
+            <ArtworkGlow artworkUrl={currentTrack?.artworkUrl ?? null} />
+            <PlayerTile hostRef={hostRef} idle={current === null} />
             <NowPlaying
               track={currentTrack}
               ownerId={currentEntry?.ownerId ?? null}
@@ -172,55 +224,40 @@ export function RoomPage({ me }: { me: SessionUser }) {
               onShuffle={() => control({ type: "shuffle", ownerId: null })}
               onRepeat={(mode: RepeatMode) => control({ type: "repeat", mode })}
             />
-            {notice !== null && (
-              <p className="notice" role="alert">
-                {notice}
+            {listening ? (
+              <p className="hero__hint">
+                <Icon name="people" />
+                These controls move the room for everyone.
               </p>
+            ) : (
+              <div className="hero__listen">
+                <ListenButton
+                  listening={listening}
+                  onStart={() => setListening(true)}
+                  onStop={() => setListening(false)}
+                />
+              </div>
             )}
-          </div>
-          <div className="nowbar__me">
-            <ListenButton
-              listening={listening}
-              onStart={() => setListening(true)}
-              onStop={() => setListening(false)}
-            />
-            <SyncNotice
-              listening={listening}
-              status={player.status}
-              errorCode={player.errorCode}
-              onResync={player.resync}
-            />
-            <VolumeControl
-              volume={audio.volume}
-              muted={audio.muted}
-              onVolume={(volume) => changeAudio({ ...audio, volume })}
-              onMuted={(muted) => changeAudio({ ...audio, muted })}
-            />
-            <p className="nowbar__who">
-              Signed in as {me.name}.{" "}
-              {me.isAdmin && (
-                <>
-                  <a href="/admin">Manage guests</a>{" "}
-                </>
-              )}
-              <SignOutButton />
+          </section>
+          {notice !== null && (
+            <p className="notice room-notice" role="alert">
+              <Icon name="alert" />
+              {notice}
             </p>
-          </div>
-        </div>
-        <ConnectionBanner state={connection} />
-      </header>
+          )}
+          <UpNextList
+            rows={rows}
+            people={people}
+            you={room.you}
+            onMove={(entryId, toIndex) => control({ type: "move", entryId, toIndex })}
+            onRemove={(entryId) => control({ type: "remove", entryId })}
+            onShuffleMine={() =>
+              room.you !== null && control({ type: "shuffle", ownerId: room.you })
+            }
+          />
+        </main>
 
-      <main className="room">
-        <h1 className="visually-hidden">Listening room</h1>
-        <UpNextList
-          rows={rows}
-          people={people}
-          you={room.you}
-          onMove={(entryId, toIndex) => control({ type: "move", entryId, toIndex })}
-          onRemove={(entryId) => control({ type: "remove", entryId })}
-          onShuffleMine={() => room.you !== null && control({ type: "shuffle", ownerId: room.you })}
-        />
-        <div className="room__side">
+        <div className="pane pane--side">
           <AddTrackForm
             onAdd={async (url) => {
               const outcome = await command({ type: "add", url });
@@ -228,10 +265,9 @@ export function RoomPage({ me }: { me: SessionUser }) {
               return outcome.result === null ? "Added." : addSummary(outcome.result);
             }}
           />
-          <ListenerList listeners={room.listeners} people={people} />
           <ActivityFeed activity={room.activity} people={people} />
         </div>
-      </main>
+      </div>
     </>
   );
 }

@@ -25,6 +25,12 @@ describe("PlayerTile", () => {
     expect(html).toContain('aria-label="Nothing playing"');
     expect(html).toContain("hidden");
   });
+
+  test("shows the room's mark in the empty tile", () => {
+    const html = renderToStaticMarkup(<PlayerTile hostRef={createRef()} idle={true} />);
+
+    expect(html).toContain('class="player-tile__mark"');
+  });
 });
 
 describe("VolumeControl", () => {
@@ -55,5 +61,37 @@ describe("VolumeControl", () => {
 
     expect(html).toContain('aria-label="Unmute"');
     expect(html).toContain('aria-pressed="true"');
+  });
+
+  test("shows the level as a number and fills the slider up to it", () => {
+    const html = renderToStaticMarkup(
+      <VolumeControl
+        volume={40}
+        muted={false}
+        onVolume={() => undefined}
+        onMuted={() => undefined}
+      />,
+    );
+
+    expect(html).toContain('<span class="volume__value" aria-hidden="true">40%</span>');
+    expect(html).toContain("--progress:40%");
+  });
+
+  test("swaps the speaker icon when muted, keeping the button's name", () => {
+    const render = (muted: boolean) =>
+      renderToStaticMarkup(
+        <VolumeControl
+          volume={40}
+          muted={muted}
+          onVolume={() => undefined}
+          onMuted={() => undefined}
+        />,
+      );
+
+    // The muted speaker is crossed out; the sounding one draws waves instead.
+    const CROSS = 'd="m22 9-6 6"';
+    expect(render(true)).toContain(CROSS);
+    expect(render(false)).not.toContain(CROSS);
+    expect(render(true)).toContain('title="Unmute"');
   });
 });

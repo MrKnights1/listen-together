@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { BrandMark } from "@/shared/ui/BrandMark.tsx";
 import {
   addGuest,
   declineRequest,
@@ -183,6 +184,7 @@ export function AddGuestForm({
         <label htmlFor="guest-id">Discord user ID</label>
         <input
           id="guest-id"
+          className="input"
           inputMode="numeric"
           autoComplete="off"
           aria-describedby="guest-id-hint"
@@ -194,6 +196,7 @@ export function AddGuestForm({
         <label htmlFor="guest-label">Name (optional)</label>
         <input
           id="guest-label"
+          className="input"
           autoComplete="off"
           maxLength={80}
           value={label}
@@ -344,6 +347,10 @@ export function AdminPage({ me }: { me: SessionUser }) {
   return (
     <main className="admin">
       <header className="admin__header">
+        <p className="admin__brand">
+          <BrandMark className="admin__mark" />
+          Listening room
+        </p>
         <h1>Who may join</h1>
         <p className="admin__who">
           <a href="/">Back to the room</a> Signed in as {me.name}. <SignOutButton />

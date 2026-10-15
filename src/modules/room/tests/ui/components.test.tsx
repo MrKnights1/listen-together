@@ -3,7 +3,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 import {
   ActivityFeed,
   AddTrackForm,
+  ArtworkGlow,
+  ConnectionBanner,
   ListenButton,
+  ListenerList,
   NowPlaying,
   SeekBar,
   TransportControls,
@@ -76,6 +79,41 @@ describe("TransportControls", () => {
     expect(html).toContain("Repeat is off");
   });
 
+  test("names the icon keys by what they do, so the room can still be steered by name", () => {
+    const html = renderToStaticMarkup(
+      <TransportControls
+        status="playing"
+        repeat="off"
+        onToggle={noop}
+        onSkip={noop}
+        onShuffle={noop}
+        onRepeat={noop}
+      />,
+    );
+
+    expect(html).toContain('aria-label="Pause"');
+    expect(html).toContain('aria-label="Skip"');
+    expect(html).toContain('aria-label="Shuffle all"');
+    expect(html).toContain('title="Pause"');
+    expect(html).not.toContain("Resume");
+  });
+
+  test("shows repeating one song as pressed, with its own label", () => {
+    const html = renderToStaticMarkup(
+      <TransportControls
+        status="playing"
+        repeat="one"
+        onToggle={noop}
+        onSkip={noop}
+        onShuffle={noop}
+        onRepeat={noop}
+      />,
+    );
+
+    expect(html).toContain('aria-label="Repeating this song"');
+    expect(html).toContain('aria-pressed="true"');
+  });
+
   test("disables pause and skip when nothing plays", () => {
     const html = renderToStaticMarkup(
       <TransportControls
@@ -102,9 +140,80 @@ describe("ListenButton", () => {
       renderToStaticMarkup(<ListenButton listening={true} onStart={noop} onStop={noop} />),
     ).toContain("Stop listening");
   });
+
+  test("keeps its name when it shows the headphones icon", () => {
+    const html = renderToStaticMarkup(
+      <ListenButton listening={false} onStart={noop} onStop={noop} />,
+    );
+
+    expect(html).toContain('aria-hidden="true"');
+    expect(html).toMatch(/<\/svg>Start listening<\/button>/);
+  });
+});
+
+describe("ArtworkGlow", () => {
+  test("blurs the song's artwork behind now playing, hidden from assistive technology", () => {
+    const html = renderToStaticMarkup(<ArtworkGlow artworkUrl="https://i.ytimg.com/vi/x/mq.jpg" />);
+
+    expect(html).toContain('class="hero__glow"');
+    expect(html).toContain('src="https://i.ytimg.com/vi/x/mq.jpg"');
+    expect(html).toContain('aria-hidden="true"');
+  });
+
+  test("draws no image for a song without artwork", () => {
+    const html = renderToStaticMarkup(<ArtworkGlow artworkUrl={null} />);
+
+    expect(html).not.toContain("<img");
+    expect(html).toContain("hero__scrim");
+  });
+});
+
+describe("ListenerList", () => {
+  const listeners = [
+    { userId: "ada", listening: true, sync: "in_sync" as const, errorCode: null },
+    { userId: "bob", listening: false, sync: "idle" as const, errorCode: null },
+  ];
+
+  test("marks which listener is you, and nobody else", () => {
+    const html = renderToStaticMarkup(
+      <ListenerList listeners={listeners} people={people} you="ada" />,
+    );
+
+    expect(html.match(/\(you\)/g)).toHaveLength(1);
+    expect(html.indexOf("(you)")).toBeLessThan(html.indexOf("Bob"));
+  });
+
+  test("shows each listener's state as a coloured dot and a line", () => {
+    const html = renderToStaticMarkup(
+      <ListenerList listeners={listeners} people={people} you="ada" />,
+    );
+
+    expect(html).toContain("face__dot--in_sync");
+    expect(html).toContain("listener__state--in_sync");
+    expect(html).toContain("In sync");
+    expect(html).toContain("face__dot--away");
+    expect(html).toContain("Here, not listening");
+  });
 });
 
 describe("UpNextList", () => {
+  test("numbers the rows in play order and names each song's artist", () => {
+    const html = renderToStaticMarkup(
+      <UpNextList
+        rows={[row("a1", "ada", 0, 1), row("b1", "bob", 0, 1)]}
+        people={people}
+        you="ada"
+        onMove={noop}
+        onRemove={noop}
+        onShuffleMine={noop}
+      />,
+    );
+
+    expect(html).toContain('<span class="row__n" aria-hidden="true">1</span>');
+    expect(html).toContain('<span class="row__n" aria-hidden="true">2</span>');
+    expect(html).toContain('<span class="row__artist">Artist</span>');
+  });
+
   test("lists songs in play order, each in its owner's colour", () => {
     const html = renderToStaticMarkup(
       <UpNextList
@@ -165,7 +274,33 @@ describe("AddTrackForm", () => {
   });
 });
 
+describe("ConnectionBanner", () => {
+  test("stays hidden while connected", () => {
+    expect(renderToStaticMarkup(<ConnectionBanner state="open" />)).toContain('hidden=""');
+  });
+
+  test("says the room is reconnecting, beside a spinner", () => {
+    const html = renderToStaticMarkup(<ConnectionBanner state="reconnecting" />);
+
+    expect(html).not.toContain('hidden=""');
+    expect(html).toContain("Lost the connection. Reconnecting…");
+    expect(html).toContain("banner__spinner");
+  });
+});
+
 describe("ActivityFeed", () => {
+  test("greys out what the room did by itself", () => {
+    const html = renderToStaticMarkup(
+      <ActivityFeed
+        people={people}
+        activity={[{ id: 1, at: 0, actorId: null, kind: "auto_paused", detail: {} }]}
+      />,
+    );
+
+    expect(html).toContain('class="feed__system"');
+    expect(html).toContain("The room paused itself");
+  });
+
   test("shows the newest line first, with who did it", () => {
     const html = renderToStaticMarkup(
       <ActivityFeed

@@ -1,3 +1,5 @@
+import { Icon } from "@/shared/ui/Icon.tsx";
+
 /** This listener's own volume and mute. Changes nothing for anyone else. */
 export function VolumeControl({
   volume,
@@ -14,14 +16,16 @@ export function VolumeControl({
     <div className="volume" role="group" aria-label="Your volume (only you hear this)">
       <button
         type="button"
-        className="volume__mute"
+        className="icon-button volume__mute"
         aria-pressed={muted}
         aria-label={muted ? "Unmute" : "Mute"}
+        title={muted ? "Unmute" : "Mute"}
         onClick={() => onMuted(!muted)}
       >
-        {muted ? "🔇" : "🔊"}
+        <Icon name={muted ? "volume-off" : "volume"} />
       </button>
       <input
+        className="range range--you"
         type="range"
         min={0}
         max={100}
@@ -30,7 +34,11 @@ export function VolumeControl({
         aria-label="Volume"
         aria-valuetext={`${volume}%`}
         onChange={(event) => onVolume(Number(event.currentTarget.value))}
+        style={{ "--progress": `${volume}%` } as React.CSSProperties}
       />
+      <span className="volume__value" aria-hidden="true">
+        {volume}%
+      </span>
     </div>
   );
 }
