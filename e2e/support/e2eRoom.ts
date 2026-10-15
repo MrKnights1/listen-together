@@ -1,6 +1,6 @@
 /**
  * What the end-to-end run shares between its config, its seeder and its
- * test: one throwaway database, two people, and the songs they add — cached
+ * tests: one throwaway database, five people, and the songs they add — cached
  * in advance, so adding them costs no YouTube quota.
  */
 import path from "node:path";
@@ -14,6 +14,9 @@ export const DATABASE_PATH = `${DATABASE_DIR}/musicplayer.db`;
 export const PEOPLE = [
   { id: "e2e-ada", discordId: "80351110224678912", name: "Ada" },
   { id: "e2e-bob", discordId: "80351110224678913", name: "Bob" },
+  { id: "e2e-cy", discordId: "80351110224678914", name: "Cy" },
+  { id: "e2e-dee", discordId: "80351110224678915", name: "Dee" },
+  { id: "e2e-eve", discordId: "80351110224678916", name: "Eve" },
 ] as const;
 
 /** Real, embeddable videos. Durations are what the room schedules by; only the start of each is played. */

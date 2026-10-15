@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { expect, test, type Browser, type Page } from "@playwright/test";
+import { clearRoom } from "./support/clearRoom.ts";
 import { BASE_URL, PEOPLE, REPO_ROOT, SONGS } from "./support/e2eRoom.ts";
 
 /** Two listeners further apart than this are not hearing the same moment. */
@@ -86,6 +87,7 @@ test("two listeners hear the same moment, and each one's controls reach the othe
   const [first, second] = SONGS;
   const ada = await openRoom(browser, tokens[PEOPLE[0].id] as string);
   const bob = await openRoom(browser, tokens[PEOPLE[1].id] as string);
+  await clearRoom(ada);
 
   await test.step("both hear the same moment of the same song", async () => {
     await add(ada, first.videoId);
@@ -116,9 +118,14 @@ test("two listeners hear the same moment, and each one's controls reach the othe
   await test.step("one pauses, and the other stops at the same place", async () => {
     await ada.getByRole("button", { name: "Pause", exact: true }).click();
 
-    await expect.poll(async () => (await playback(bob))?.paused).toBe(true);
+    // Both players hear of the pause at the same moment, but stop a few milliseconds apart.
+    await expect
+      .poll(async () => {
+        const { a, b } = await readBoth(ada, bob);
+        return a.paused && b.paused;
+      })
+      .toBe(true);
     const { a, b } = await readBoth(ada, bob);
-    expect(a.paused).toBe(true);
     expect(Math.abs(a.positionMs - b.positionMs)).toBeLessThan(500);
   });
 

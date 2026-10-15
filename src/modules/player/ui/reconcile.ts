@@ -9,6 +9,11 @@ export interface Target {
   /** The room's position at the instant the target was computed. */
   positionMs: number;
   durationMs: number;
+  /**
+   * When the room last set where it is — a jump, a pause, a resume or a new
+   * song — on the room's clock. A new value is an instruction, not drift.
+   */
+  setAt: number;
 }
 
 /** What the local player is doing, read at the same instant. */
@@ -34,6 +39,8 @@ export interface SyncMemory {
   failures: number;
   lastPositionMs: number | null;
   stalledSince: number | null;
+  /** The room's last instruction this player has taken in: `Target.setAt`. */
+  followedSetAt: number | null;
 }
 
 export const freshMemory = (): SyncMemory => ({
@@ -41,6 +48,7 @@ export const freshMemory = (): SyncMemory => ({
   failures: 0,
   lastPositionMs: null,
   stalledSince: null,
+  followedSetAt: null,
 });
 
 /** Under a second apart is not worth an audible jump. */
@@ -78,12 +86,17 @@ export function reconcile(
   target: Target | null,
   player: PlayerView,
   listening: boolean,
-  memory: SyncMemory,
+  known: SyncMemory,
   now: number,
 ): { actions: PlayerAction[]; memory: SyncMemory; status: SyncStatus } {
   if (!listening || target === null) {
     return result(sounding(player.state) ? [{ type: "pause" }] : [], freshMemory(), "idle");
   }
+
+  // The room jumped, paused, resumed or moved on: an instruction, followed at once. The
+  // cooldown is for this player's own drift, and must never hold back what the room did.
+  const fresh: SyncMemory = { ...freshMemory(), followedSetAt: target.setAt };
+  const memory = known.followedSetAt === target.setAt ? known : fresh;
 
   if (player.providerTrackId !== target.providerTrackId) {
     const lead = target.playing ? LOAD_LEAD_MS : 0;
@@ -97,7 +110,7 @@ export function reconcile(
           play: target.playing,
         },
       ],
-      { ...freshMemory(), lastCorrectionAt: now },
+      { ...fresh, lastCorrectionAt: now },
       "catching_up",
     );
   }
@@ -112,7 +125,7 @@ export function reconcile(
     if (sounding(player.state)) actions.push({ type: "pause" });
     if (Math.abs(drift) > PAUSED_ALIGN_MS)
       actions.push({ type: "seek", positionMs: target.positionMs });
-    return result(actions, freshMemory(), "in_sync");
+    return result(actions, fresh, "in_sync");
   }
 
   // Finished a beat before the room moved on: that is the grace second, not a fault.

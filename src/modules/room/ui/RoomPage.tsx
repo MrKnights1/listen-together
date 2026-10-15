@@ -80,6 +80,7 @@ export function RoomPage({ me }: { me: SessionUser }) {
       playing: current.status === "playing",
       positionMs: positionAt(state, clock.serverNow(localNow)),
       durationMs: currentEntry.durationMs,
+      setAt: current.anchorAt,
     };
   };
 

@@ -19,6 +19,7 @@ const playing = (positionMs: number, overrides: Partial<Target> = {}): Target =>
   playing: true,
   positionMs,
   durationMs: 200_000,
+  setAt: 0,
   ...overrides,
 });
 const paused = (positionMs: number) => playing(positionMs, { playing: false });
@@ -177,6 +178,48 @@ describe("reconcile — the room is playing", () => {
 
     expect(soon.actions).toEqual([]);
     expect(soon.status).toBe("catching_up");
+  });
+
+  test("follows a jump by the room at once, even right after correcting this player", () => {
+    // The room resumes: starting the paused player counts as a correction.
+    const resumed = reconcile(
+      playing(60_000),
+      view({ state: "paused", positionMs: 60_000 }),
+      true,
+      freshMemory(),
+      0,
+    );
+
+    // A second later somebody jumps to 2:00, well inside the cooldown.
+    const jumped = reconcile(
+      playing(120_000, { setAt: 1000 }),
+      view({ positionMs: 61_000 }),
+      true,
+      resumed.memory,
+      1000,
+    );
+
+    expect(jumped.actions).toEqual([{ type: "seek", positionMs: 120_000 + SEEK_LEAD_MS }]);
+  });
+
+  test("follows a second jump made right after the first", () => {
+    const first = reconcile(
+      playing(120_000, { setAt: 1000 }),
+      view({ positionMs: 61_000 }),
+      true,
+      freshMemory(),
+      1000,
+    );
+
+    const second = reconcile(
+      playing(30_000, { setAt: 2000 }),
+      view({ positionMs: 120_500 }),
+      true,
+      first.memory,
+      2000,
+    );
+
+    expect(second.actions).toEqual([{ type: "seek", positionMs: 30_000 + SEEK_LEAD_MS }]);
   });
 
   test("doubles the cooldown with each correction that did not land", () => {

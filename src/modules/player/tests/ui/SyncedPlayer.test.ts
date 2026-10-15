@@ -18,6 +18,7 @@ beforeEach(() => {
     playing: true,
     positionMs: 10_000,
     durationMs: 200_000,
+    setAt: 0,
   };
   adapters = [];
   statuses = [];
@@ -75,6 +76,7 @@ describe("SyncedPlayer", () => {
       playing: true,
       positionMs: 0,
       durationMs: 1000,
+      setAt: 1,
     };
 
     player.tick();
@@ -95,6 +97,7 @@ describe("SyncedPlayer", () => {
       playing: true,
       positionMs: 0,
       durationMs: 1000,
+      setAt: 1,
     };
     player.tick();
     expect(statuses.at(-1)?.[0]).toBe("catching_up");
