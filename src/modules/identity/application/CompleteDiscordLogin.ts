@@ -1,14 +1,16 @@
 import type { Clock } from "@/shared/domain/Clock.ts";
 import type { IdGenerator } from "@/shared/domain/IdGenerator.ts";
-import type { AllowedDiscordUsers } from "@/modules/identity/domain/AllowedDiscordUsers.ts";
 import { DiscordIdentity } from "@/modules/identity/domain/DiscordIdentity.ts";
+import { NotAllowed } from "@/modules/identity/domain/errors.ts";
 import type { LoginRequest } from "@/modules/identity/domain/LoginRequest.ts";
 import { Session } from "@/modules/identity/domain/Session.ts";
 import { User } from "@/modules/identity/domain/User.ts";
+import type { AccessRequestRepository } from "@/modules/identity/domain/ports/AccessRequestRepository.ts";
 import type { DiscordOAuth } from "@/modules/identity/domain/ports/DiscordOAuth.ts";
 import type { SessionRepository } from "@/modules/identity/domain/ports/SessionRepository.ts";
 import type { TokenGenerator } from "@/modules/identity/domain/ports/TokenGenerator.ts";
 import type { UserRepository } from "@/modules/identity/domain/ports/UserRepository.ts";
+import type { AccessList } from "./AccessList.ts";
 
 export interface CompletedLogin {
   user: User;
@@ -22,13 +24,16 @@ export interface CompletedLogin {
  *
  * Order matters twice. The callback is proven to belong to this browser's
  * sign-in *before* the code is spent, so a forged callback never reaches
- * Discord. And the whitelist is checked *before* anything is written, so a
- * stranger who completes Discord's consent screen leaves no row behind.
+ * Discord. And the guest list is checked *before* a user or session is
+ * written: a stranger who completes Discord's consent screen gets neither.
+ * What they leave is a request to be let in — their Discord name and picture,
+ * for a host to approve or decline.
  */
 export class CompleteDiscordLogin {
   constructor(
     private readonly oauth: DiscordOAuth,
-    private readonly allowed: AllowedDiscordUsers,
+    private readonly access: AccessList,
+    private readonly accessRequests: AccessRequestRepository,
     private readonly users: UserRepository,
     private readonly sessions: SessionRepository,
     private readonly tokens: TokenGenerator,
@@ -45,7 +50,16 @@ export class CompleteDiscordLogin {
 
     const profile = await this.oauth.exchangeCode(code, loginRequest.codeVerifier);
     const identity = DiscordIdentity.fromProfile(profile);
-    this.allowed.admit(identity.discordId);
+    if (!(await this.access.allows(identity.discordId))) {
+      await this.accessRequests.record({
+        discordId: identity.discordId,
+        username: identity.username,
+        globalName: identity.globalName,
+        avatarHash: identity.avatarHash,
+        requestedAt: this.clock.now(),
+      });
+      throw new NotAllowed();
+    }
 
     // Read again: the exchange is a network round trip.
     const now = this.clock.now();

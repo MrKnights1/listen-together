@@ -15,8 +15,9 @@ describe("LoginPage", () => {
   });
 
   test("explains being turned away, and what to do about it", () => {
-    expect(markup("not_allowed")).toContain("isn&#x27;t on this room&#x27;s guest list");
-    expect(markup("not_allowed")).toContain("Discord user ID");
+    expect(markup("not_allowed")).toContain("not on this room&#x27;s guest list yet");
+    expect(markup("not_allowed")).toContain("The admins have been asked to let you in");
+    expect(markup("removed")).toContain("no longer on this room&#x27;s guest list");
   });
 
   test("never shows a raw reason code for any reason the server can send", () => {

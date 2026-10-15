@@ -125,6 +125,15 @@ export class RoomSockets {
     );
   }
 
+  /** Taken off the guest list: every socket they have open closes now, and stays closed. */
+  closeForUser(userId: string): number {
+    return this.closeWhere(
+      (connection) => connection.ws.data.userId === userId,
+      NOT_ALLOWED_CLOSE_CODE,
+      "You are no longer on this room's guest list.",
+    );
+  }
+
   /** Shutdown: everybody reconnects to whichever process comes next. */
   closeAll(code: number, reason: string): number {
     return this.closeWhere(() => true, code, reason);

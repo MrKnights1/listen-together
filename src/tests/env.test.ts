@@ -26,7 +26,7 @@ describe("readEnv", () => {
     expect(env.port).toBe(3000);
     expect(env.appUrl).toBe("http://localhost:3000");
     expect(env.development).toBe(true);
-    expect(env.discordAllowedUserIds).toEqual(["80351110224678912", "123456789012345678"]);
+    expect(env.discordHostIds).toEqual(["80351110224678912", "123456789012345678"]);
     expect(env.youtubeRegionCode).toBe("EE");
   });
 
@@ -89,7 +89,7 @@ describe("readEnv", () => {
   test("drops duplicate whitelist entries", () => {
     expect(
       readEnv({ ...VALID, DISCORD_ALLOWED_USER_IDS: "80351110224678912,80351110224678912" })
-        .discordAllowedUserIds,
+        .discordHostIds,
     ).toEqual(["80351110224678912"]);
   });
 

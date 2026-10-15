@@ -7,10 +7,12 @@ import { migrate } from "@/shared/infrastructure/migrator.ts";
 import { SystemClock } from "@/shared/infrastructure/SystemClock.ts";
 import { SystemTimers } from "@/shared/infrastructure/SystemTimers.ts";
 import {
-  AllowedDiscordUsers,
+  AccessList,
+  Hosts,
   FindUsers,
   GetSessionUser,
   LogOut,
+  SqliteGuestRepository,
   SqliteSessionRepository,
   SqliteUserRepository,
   WebCryptoTokenGenerator,
@@ -71,7 +73,7 @@ beforeEach(() => {
   const getSessionUser = new GetSessionUser(
     sessions,
     users,
-    AllowedDiscordUsers.of([ADA.discordId, BOB.discordId]),
+    new AccessList(Hosts.of([ADA.discordId, BOB.discordId]), new SqliteGuestRepository(db)),
     tokens,
     clock,
   );

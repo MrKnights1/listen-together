@@ -22,7 +22,7 @@ export interface Env {
   discordClientSecret: string;
   discordRedirectUri: string;
   /** Discord user ids (snowflakes) allowed in. Never empty. */
-  discordAllowedUserIds: string[];
+  discordHostIds: string[];
   youtubeApiKey: string;
   /** ISO 3166-1 alpha-2. Videos blocked in this region are refused at add time. */
   youtubeRegionCode: string;
@@ -117,7 +117,7 @@ export function readEnv(source: Record<string, string | undefined> = Bun.env): E
     discordClientId: required(source, "DISCORD_CLIENT_ID"),
     discordClientSecret: required(source, "DISCORD_CLIENT_SECRET"),
     discordRedirectUri: redirectUri.href,
-    discordAllowedUserIds: allowedUserIds(source),
+    discordHostIds: allowedUserIds(source),
     youtubeApiKey: required(source, "YOUTUBE_API_KEY"),
     youtubeRegionCode: regionCode,
   };

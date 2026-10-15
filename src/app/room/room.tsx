@@ -8,7 +8,7 @@ if (container === null) throw new Error("The room page is missing its #root elem
 const session = await loadSession();
 
 if (session.status === "signed-out") window.location.replace("/login");
-else if (session.status === "not-allowed") window.location.replace("/login?error=not_allowed");
+else if (session.status === "not-allowed") window.location.replace("/login?error=removed");
 else if (session.status === "unreachable") {
   createRoot(container).render(
     <p className="notice" role="alert">

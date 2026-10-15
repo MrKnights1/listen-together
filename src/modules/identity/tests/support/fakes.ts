@@ -1,9 +1,16 @@
 import type { Clock } from "@/shared/domain/Clock.ts";
 import type { IdGenerator } from "@/shared/domain/IdGenerator.ts";
+import {
+  MAX_ACCESS_REQUESTS,
+  type AccessRequest,
+} from "@/modules/identity/domain/AccessRequest.ts";
 import type { DiscordProfile } from "@/modules/identity/domain/DiscordIdentity.ts";
 import type { Session } from "@/modules/identity/domain/Session.ts";
 import { User } from "@/modules/identity/domain/User.ts";
+import type { Guest } from "@/modules/identity/domain/Guest.ts";
+import type { AccessRequestRepository } from "@/modules/identity/domain/ports/AccessRequestRepository.ts";
 import type { DiscordOAuth } from "@/modules/identity/domain/ports/DiscordOAuth.ts";
+import type { GuestRepository } from "@/modules/identity/domain/ports/GuestRepository.ts";
 import type { SessionRepository } from "@/modules/identity/domain/ports/SessionRepository.ts";
 import type { TokenGenerator } from "@/modules/identity/domain/ports/TokenGenerator.ts";
 import type { UserRepository } from "@/modules/identity/domain/ports/UserRepository.ts";
@@ -97,8 +104,91 @@ export class InMemorySessionRepository implements SessionRepository {
     return removed;
   }
 
+  async deleteByUserId(userId: string): Promise<number> {
+    let removed = 0;
+    for (const [tokenHash, session] of this.byTokenHash) {
+      if (session.userId === userId) {
+        this.byTokenHash.delete(tokenHash);
+        removed += 1;
+      }
+    }
+    return removed;
+  }
+
   count(): number {
     return this.byTokenHash.size;
+  }
+}
+
+/** Newest first, ties broken by id — the order the SQLite adapters return. */
+const newestFirst =
+  <T extends { discordId: string }>(at: (item: T) => Date) =>
+  (a: T, b: T): number =>
+    at(b).getTime() - at(a).getTime() || a.discordId.localeCompare(b.discordId);
+
+export class InMemoryGuestRepository implements GuestRepository {
+  private readonly byDiscordId = new Map<string, Guest>();
+
+  async find(discordId: string): Promise<Guest | null> {
+    return this.byDiscordId.get(discordId) ?? null;
+  }
+
+  async list(): Promise<Guest[]> {
+    return [...this.byDiscordId.values()].sort(newestFirst((guest) => guest.addedAt));
+  }
+
+  async setAdmin(discordId: string, isAdmin: boolean): Promise<boolean> {
+    const guest = this.byDiscordId.get(discordId);
+    if (guest === undefined) return false;
+    this.byDiscordId.set(discordId, { ...guest, isAdmin });
+    return true;
+  }
+
+  /** Mirrors the primary key: a second add of the same id fails. */
+  async add(guest: Guest): Promise<void> {
+    if (this.byDiscordId.has(guest.discordId)) throw new Error("UNIQUE constraint failed");
+    this.byDiscordId.set(guest.discordId, guest);
+  }
+
+  async remove(discordId: string): Promise<boolean> {
+    return this.byDiscordId.delete(discordId);
+  }
+}
+
+export class InMemoryAccessRequestRepository implements AccessRequestRepository {
+  private readonly byDiscordId = new Map<string, AccessRequest>();
+
+  async record(request: AccessRequest): Promise<void> {
+    this.byDiscordId.set(request.discordId, request);
+    const keep = new Set(
+      (await this.list()).slice(0, MAX_ACCESS_REQUESTS).map((one) => one.discordId),
+    );
+    for (const discordId of this.byDiscordId.keys()) {
+      if (!keep.has(discordId)) this.byDiscordId.delete(discordId);
+    }
+  }
+
+  async find(discordId: string): Promise<AccessRequest | null> {
+    return this.byDiscordId.get(discordId) ?? null;
+  }
+
+  async list(): Promise<AccessRequest[]> {
+    return [...this.byDiscordId.values()].sort(newestFirst((request) => request.requestedAt));
+  }
+
+  async remove(discordId: string): Promise<boolean> {
+    return this.byDiscordId.delete(discordId);
+  }
+
+  async purgeBefore(cutoff: Date): Promise<number> {
+    let removed = 0;
+    for (const [discordId, request] of this.byDiscordId) {
+      if (request.requestedAt < cutoff) {
+        this.byDiscordId.delete(discordId);
+        removed += 1;
+      }
+    }
+    return removed;
   }
 }
 

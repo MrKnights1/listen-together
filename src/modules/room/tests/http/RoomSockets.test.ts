@@ -306,6 +306,18 @@ describe("sessions", () => {
     expect(bob.closedWith).toBeNull();
   });
 
+  test("taking somebody off the guest list closes every socket they have, and only theirs", async () => {
+    const ada = await connect("ada");
+    const adaAgain = await connect("ada");
+    const bob = await connect("bob");
+
+    expect(sockets.closeForUser("ada")).toBe(2);
+
+    expect(ada.closedWith?.code).toBe(NOT_ALLOWED_CLOSE_CODE);
+    expect(adaAgain.closedWith?.code).toBe(NOT_ALLOWED_CLOSE_CODE);
+    expect(bob.closedWith).toBeNull();
+  });
+
   test("a socket is closed the moment its session expires", async () => {
     const ada = await connect("ada", NOW + 5000);
     const bob = await connect("bob", NOW + 60_000);

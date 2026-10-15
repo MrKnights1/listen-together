@@ -50,7 +50,7 @@ export function RoomPage({ me }: { me: SessionUser }) {
 
   useEffect(() => {
     if (connection === "signed_out") window.location.replace("/login");
-    if (connection === "not_allowed") window.location.replace("/login?error=not_allowed");
+    if (connection === "not_allowed") window.location.replace("/login?error=removed");
   }, [connection]);
 
   const changeAudio = useCallback((next: AudioPreferences) => {
@@ -197,7 +197,13 @@ export function RoomPage({ me }: { me: SessionUser }) {
               onMuted={(muted) => changeAudio({ ...audio, muted })}
             />
             <p className="nowbar__who">
-              Signed in as {me.name}. <SignOutButton />
+              Signed in as {me.name}.{" "}
+              {me.isAdmin && (
+                <>
+                  <a href="/admin">Manage guests</a>{" "}
+                </>
+              )}
+              <SignOutButton />
             </p>
           </div>
         </div>

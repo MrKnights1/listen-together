@@ -92,8 +92,9 @@ check() {
 }
 check /
 check /login
+check /admin
 check /api/health
-for asset in $(grep -oh '/assets/[^"]*' "$WEB/room.html" "$WEB/login.html" | sort -u); do
+for asset in $(grep -oh '/assets/[^"]*' "$WEB/room.html" "$WEB/login.html" "$WEB/admin.html" | sort -u); do
   check "$asset"
 done
 

@@ -16,6 +16,7 @@ const USER = {
   id: "user-1",
   name: "Ada Lovelace",
   avatarUrl: "https://cdn.discordapp.com/embed/avatars/0.png",
+  isAdmin: false,
 };
 
 describe("loadSession", () => {

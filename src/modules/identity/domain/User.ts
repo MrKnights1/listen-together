@@ -1,4 +1,5 @@
 import type { DiscordIdentity } from "./DiscordIdentity.ts";
+import { discordAvatarUrl } from "./discordAvatar.ts";
 
 export interface UserSnapshot {
   id: string;
@@ -9,11 +10,6 @@ export interface UserSnapshot {
   createdAt: Date;
   lastLoginAt: Date;
 }
-
-const DISCORD_CDN = "https://cdn.discordapp.com";
-
-/** Discord's own six default avatars, chosen from the id for accounts without one. */
-const DEFAULT_AVATAR_COUNT = 6n;
 
 export class User {
   private constructor(
@@ -73,17 +69,9 @@ export class User {
     return this.globalName ?? this.username;
   }
 
-  /**
-   * Their Discord avatar, or one of Discord's default avatars when they have
-   * none. The default index is `(id >> 22) % 6`, which needs BigInt: a
-   * snowflake does not fit in a double.
-   */
+  /** Their Discord avatar, or Discord's default one for them. */
   get avatarUrl(): string {
-    if (this.avatarHash !== null) {
-      return `${DISCORD_CDN}/avatars/${this.discordId}/${this.avatarHash}.png?size=64`;
-    }
-    const index = (BigInt(this.discordId) >> 22n) % DEFAULT_AVATAR_COUNT;
-    return `${DISCORD_CDN}/embed/avatars/${index}.png`;
+    return discordAvatarUrl(this.discordId, this.avatarHash);
   }
 
   toSnapshot(): UserSnapshot {

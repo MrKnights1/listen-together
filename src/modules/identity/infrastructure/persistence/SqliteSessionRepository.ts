@@ -48,4 +48,8 @@ export class SqliteSessionRepository implements SessionRepository {
   async deleteExpired(now: Date): Promise<number> {
     return this.db.query("DELETE FROM sessions WHERE expires_at <= ?").run(now.getTime()).changes;
   }
+
+  async deleteByUserId(userId: string): Promise<number> {
+    return this.db.query("DELETE FROM sessions WHERE user_id = ?").run(userId).changes;
+  }
 }

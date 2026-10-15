@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { AccessList } from "@/modules/identity/application/AccessList.ts";
 import { GetSessionUser } from "@/modules/identity/application/GetSessionUser.ts";
-import { AllowedDiscordUsers } from "@/modules/identity/domain/AllowedDiscordUsers.ts";
+import { Hosts } from "@/modules/identity/domain/Hosts.ts";
 import { DiscordIdentity } from "@/modules/identity/domain/DiscordIdentity.ts";
 import { Session, SESSION_LIFETIME_MS } from "@/modules/identity/domain/Session.ts";
 import { User } from "@/modules/identity/domain/User.ts";
@@ -8,6 +9,7 @@ import {
   ADA_DISCORD_ID,
   adaProfile,
   FakeClock,
+  InMemoryGuestRepository,
   InMemorySessionRepository,
   InMemoryUserRepository,
   SequenceTokenGenerator,
@@ -17,13 +19,14 @@ const NOW = new Date("2026-10-15T10:00:00.000Z");
 
 let users: InMemoryUserRepository;
 let sessions: InMemorySessionRepository;
+let guests: InMemoryGuestRepository;
 let clock: FakeClock;
 
-function lookup(allowedIds: string[]): GetSessionUser {
+function lookup(adminIds: string[]): GetSessionUser {
   return new GetSessionUser(
     sessions,
     users,
-    AllowedDiscordUsers.of(allowedIds),
+    new AccessList(Hosts.of(adminIds), guests),
     new SequenceTokenGenerator(),
     clock,
   );
@@ -32,6 +35,7 @@ function lookup(allowedIds: string[]): GetSessionUser {
 beforeEach(async () => {
   users = new InMemoryUserRepository();
   sessions = new InMemorySessionRepository();
+  guests = new InMemoryGuestRepository();
   clock = new FakeClock(NOW);
   await users.save(User.register("user-1", DiscordIdentity.fromProfile(adaProfile()), NOW));
   await sessions.save(Session.open("hash(token-1)", "user-1", NOW));
@@ -69,8 +73,35 @@ describe("GetSessionUser", () => {
   });
 
   /** Taking someone off the list must not wait 30 days for their session to run out. */
-  test("says not allowed for someone taken off the whitelist, and deletes their session", async () => {
+  test("says not allowed for someone on neither list, and deletes their session", async () => {
     expect(await lookup([]).execute("token-1")).toEqual({ status: "not_allowed" });
     expect(await sessions.findByTokenHash("hash(token-1)")).toBeNull();
+  });
+
+  test("lets in a guest a host added, though they are no host", async () => {
+    await guests.add({
+      discordId: ADA_DISCORD_ID,
+      label: null,
+      avatarHash: null,
+      isAdmin: false,
+      addedBy: "123456789012345678",
+      addedAt: NOW,
+    });
+
+    expect((await lookup([]).execute("token-1")).status).toBe("signed_in");
+  });
+
+  test("turns a guest away on their next request once they are removed", async () => {
+    await guests.add({
+      discordId: ADA_DISCORD_ID,
+      label: null,
+      avatarHash: null,
+      isAdmin: false,
+      addedBy: "123456789012345678",
+      addedAt: NOW,
+    });
+    await guests.remove(ADA_DISCORD_ID);
+
+    expect(await lookup([]).execute("token-1")).toEqual({ status: "not_allowed" });
   });
 });

@@ -13,15 +13,24 @@ import { SystemTimers } from "@/shared/infrastructure/SystemTimers.ts";
 import { UuidIdGenerator } from "@/shared/infrastructure/UuidIdGenerator.ts";
 
 import {
-  AllowedDiscordUsers,
+  AccessList,
+  AddGuest,
+  Hosts,
   CompleteDiscordLogin,
+  DeclineAccessRequest,
   createIdentityRoutes,
   DISCORD_ENDPOINTS,
   DiscordOAuthClient,
   FindUsers,
+  GetGuestList,
   GetSessionUser,
   LogOut,
   PurgeExpiredSessions,
+  PurgeStaleAccessRequests,
+  RemoveGuest,
+  SetGuestAdmin,
+  SqliteAccessRequestRepository,
+  SqliteGuestRepository,
   SqliteSessionRepository,
   SqliteUserRepository,
   StartDiscordLogin,
@@ -75,21 +84,26 @@ const secureCookies = env.appUrl.startsWith("https://");
 const tokens = new WebCryptoTokenGenerator();
 const users = new SqliteUserRepository(db);
 const sessions = new SqliteSessionRepository(db);
-const allowed = AllowedDiscordUsers.of(env.discordAllowedUserIds);
+const guests = new SqliteGuestRepository(db);
+const accessRequests = new SqliteAccessRequestRepository(db);
+const hosts = Hosts.of(env.discordHostIds);
+const accessList = new AccessList(hosts, guests);
 const discord = new DiscordOAuthClient({
   clientId: env.discordClientId,
   clientSecret: env.discordClientSecret,
   redirectUri: env.discordRedirectUri,
   endpoints: DISCORD_ENDPOINTS,
 });
-const getSessionUser = new GetSessionUser(sessions, users, allowed, tokens, clock);
+const getSessionUser = new GetSessionUser(sessions, users, accessList, tokens, clock);
 const logOut = new LogOut(sessions, tokens);
+const removeGuest = new RemoveGuest(hosts, guests, users, sessions);
 
 const identityRoutes = createIdentityRoutes({
   startDiscordLogin: new StartDiscordLogin(discord, tokens, clock),
   completeDiscordLogin: new CompleteDiscordLogin(
     discord,
-    allowed,
+    accessList,
+    accessRequests,
     users,
     sessions,
     tokens,
@@ -99,13 +113,21 @@ const identityRoutes = createIdentityRoutes({
   getSessionUser,
   logOut,
   secureCookies,
+  accessList,
+  appOrigin: env.appUrl,
+  getGuestList: new GetGuestList(hosts, guests, accessRequests, users),
+  addGuest: new AddGuest(hosts, guests, accessRequests, clock),
+  removeGuest,
+  setGuestAdmin: new SetGuestAdmin(hosts, guests),
+  declineAccessRequest: new DeclineAccessRequest(accessRequests),
 });
 
 const purgeExpiredSessions = new PurgeExpiredSessions(sessions, clock);
+const purgeStaleAccessRequests = new PurgeStaleAccessRequests(accessRequests, clock);
 const sessionPurge = new RecurringJob(
-  "Purging expired sessions",
+  "Purging expired sessions and stale requests to join",
   DAY_MS,
-  () => purgeExpiredSessions.execute(),
+  () => Promise.all([purgeExpiredSessions.execute(), purgeStaleAccessRequests.execute()]),
   timers,
 );
 await sessionPurge.start();
@@ -159,8 +181,9 @@ const roomSockets = new RoomSockets({
   clock,
   timers,
 });
-// Signing out closes that session's open sockets at once.
+// Signing out closes that session's open sockets at once; so does being taken off the guest list.
 logOut.onSessionEnded((sessionToken) => roomSockets.closeForSession(sessionToken));
+removeGuest.onAccessRevoked((userId) => roomSockets.closeForUser(userId));
 
 // Production serves the pages from nginx; only development bundles them in-process.
 const pageRoutes = env.development ? (await import("./pages.ts")).pages : {};

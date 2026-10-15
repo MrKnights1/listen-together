@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { AccessList } from "@/modules/identity/application/AccessList.ts";
 import { CompleteDiscordLogin } from "@/modules/identity/application/CompleteDiscordLogin.ts";
-import { AllowedDiscordUsers } from "@/modules/identity/domain/AllowedDiscordUsers.ts";
+import { Hosts } from "@/modules/identity/domain/Hosts.ts";
 import {
   InvalidIdentity,
   LoginRequestExpired,
@@ -12,6 +13,8 @@ import {
   ADA_DISCORD_ID,
   adaProfile,
   FakeClock,
+  InMemoryAccessRequestRepository,
+  InMemoryGuestRepository,
   InMemorySessionRepository,
   InMemoryUserRepository,
   SequenceIdGenerator,
@@ -25,6 +28,8 @@ const NOW = new Date("2026-10-15T10:00:00.000Z");
 let oauth: StubDiscordOAuth;
 let users: InMemoryUserRepository;
 let sessions: InMemorySessionRepository;
+let guests: InMemoryGuestRepository;
+let accessRequests: InMemoryAccessRequestRepository;
 let tokens: SequenceTokenGenerator;
 let clock: FakeClock;
 let completeLogin: CompleteDiscordLogin;
@@ -34,11 +39,14 @@ beforeEach(() => {
   oauth = new StubDiscordOAuth();
   users = new InMemoryUserRepository();
   sessions = new InMemorySessionRepository();
+  guests = new InMemoryGuestRepository();
+  accessRequests = new InMemoryAccessRequestRepository();
   tokens = new SequenceTokenGenerator("session");
   clock = new FakeClock(NOW);
   completeLogin = new CompleteDiscordLogin(
     oauth,
-    AllowedDiscordUsers.of([ADA_DISCORD_ID]),
+    new AccessList(Hosts.of([ADA_DISCORD_ID]), guests),
+    accessRequests,
     users,
     sessions,
     tokens,
@@ -64,9 +72,14 @@ describe("CompleteDiscordLogin", () => {
     expect(oauth.exchanges).toEqual([{ code: "code-1", codeVerifier: "verifier-1" }]);
   });
 
-  /** The rule this module exists for: a stranger leaves nothing behind. */
-  test("turns away someone off the whitelist and writes nothing", async () => {
-    oauth.profile = adaProfile({ id: STRANGER_DISCORD_ID });
+  /** A stranger gets no user and no session: only a request a host can answer. */
+  test("turns away someone off the guest list, leaving only a request to join", async () => {
+    oauth.profile = adaProfile({
+      id: STRANGER_DISCORD_ID,
+      username: "bob",
+      globalName: "Bob",
+      avatarHash: "b0b",
+    });
 
     await expect(completeLogin.execute(loginRequest, "state-1", "code-1")).rejects.toThrow(
       NotAllowed,
@@ -74,6 +87,52 @@ describe("CompleteDiscordLogin", () => {
 
     expect(users.count()).toBe(0);
     expect(sessions.count()).toBe(0);
+    expect(await accessRequests.list()).toEqual([
+      {
+        discordId: STRANGER_DISCORD_ID,
+        username: "bob",
+        globalName: "Bob",
+        avatarHash: "b0b",
+        requestedAt: NOW,
+      },
+    ]);
+  });
+
+  test("asking again refreshes the one request rather than adding another", async () => {
+    oauth.profile = adaProfile({ id: STRANGER_DISCORD_ID, username: "bob" });
+    await expect(completeLogin.execute(loginRequest, "state-1", "code-1")).rejects.toThrow();
+    clock.advance(60_000);
+    oauth.profile = adaProfile({ id: STRANGER_DISCORD_ID, username: "bobby" });
+
+    await expect(
+      completeLogin.execute(
+        LoginRequest.start("state-2", "verifier-2", clock.now()),
+        "state-2",
+        "code-2",
+      ),
+    ).rejects.toThrow(NotAllowed);
+
+    const waiting = await accessRequests.list();
+    expect(waiting).toHaveLength(1);
+    expect(waiting[0]?.username).toBe("bobby");
+    expect(waiting[0]?.requestedAt).toEqual(clock.now());
+  });
+
+  test("lets a guest a host added sign in, and asks nothing of them", async () => {
+    oauth.profile = adaProfile({ id: STRANGER_DISCORD_ID, username: "bob" });
+    await guests.add({
+      discordId: STRANGER_DISCORD_ID,
+      label: "Bob",
+      avatarHash: null,
+      isAdmin: false,
+      addedBy: ADA_DISCORD_ID,
+      addedAt: NOW,
+    });
+
+    const result = await completeLogin.execute(loginRequest, "state-1", "code-1");
+
+    expect(result.user.discordId).toBe(STRANGER_DISCORD_ID);
+    expect(await accessRequests.list()).toEqual([]);
   });
 
   test("never spends the code when the state does not match", async () => {

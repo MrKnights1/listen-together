@@ -5,7 +5,10 @@ const MESSAGES: Record<string, string> = {
   login_request_expired: "That sign-in took too long. Start again.",
   state_mismatch: "That sign-in couldn't be matched to this browser. Start again.",
   not_allowed:
-    "Your Discord account isn't on this room's guest list. Ask whoever runs the room to add your Discord user ID.",
+    "You're not on this room's guest list yet. The admins have been asked to let you in — sign in again once they have.",
+  // Not a sign-in failure: an open room or page found its session no longer allowed.
+  removed:
+    "You're no longer on this room's guest list. Sign in again to ask the admins to let you back in.",
   invalid_identity: "Discord didn't send a usable account. Try again.",
   unavailable: "Discord didn't respond. Try again in a moment.",
 };

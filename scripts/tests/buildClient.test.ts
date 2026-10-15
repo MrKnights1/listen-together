@@ -29,12 +29,13 @@ async function referencedBy(page: string): Promise<string[]> {
 }
 
 describe("buildClient", () => {
-  test("writes the two pages nginx serves at / and /login", () => {
+  test("writes the three pages nginx serves at /, /login and /admin", () => {
     expect(files).toContain("room.html");
     expect(files).toContain("login.html");
+    expect(files).toContain("admin.html");
   });
 
-  test.each(["room.html", "login.html"])(
+  test.each(["room.html", "login.html", "admin.html"])(
     "%s loads only hashed files under /assets/ that the build wrote",
     async (page) => {
       const urls = await referencedBy(page);
@@ -49,7 +50,7 @@ describe("buildClient", () => {
 
   /** The Content Security Policy allows no inline script. */
   test("puts no inline script in a page", async () => {
-    for (const page of ["room.html", "login.html"]) {
+    for (const page of ["room.html", "login.html", "admin.html"]) {
       const scripts = [...(await read(page)).matchAll(/<script\b[^>]*>/g)].map((match) => match[0]);
 
       expect(scripts.length).toBeGreaterThan(0);

@@ -1,8 +1,10 @@
-/** Mirrors the API's `UserView`. */
+/** Mirrors the API's `UserView`, plus whether this person is a host. */
 export interface SessionUser {
   id: string;
   name: string;
   avatarUrl: string;
+  /** Hosts may open /admin. The server checks again on every admin request. */
+  isAdmin: boolean;
 }
 
 /**

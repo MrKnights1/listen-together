@@ -39,6 +39,13 @@ export const notFound = (detail: string): Response =>
 export const conflict = (detail: string): Response =>
   problemResponse({ title: "Conflict", status: 409, detail });
 
+export const unsupportedMediaType = (detail: string): Response =>
+  problemResponse({ title: "Unsupported media type", status: 415, detail });
+
+/** Well-formed, and still not something that can be done: a malformed id, a name too long. */
+export const unprocessable = (detail: string): Response =>
+  problemResponse({ title: "Cannot be done", status: 422, detail });
+
 export const badGateway = (detail: string): Response =>
   problemResponse({ title: "Upstream failure", status: 502, detail });
 

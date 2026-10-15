@@ -44,6 +44,38 @@ describe("identity schema", () => {
     ).toThrow();
   });
 
+  test("keeps a guest and a request with no user row behind them: neither has signed in", () => {
+    db.query(
+      "INSERT INTO guests (discord_id, label, avatar_hash, is_admin, added_by, added_at) VALUES ('123456789012345678', NULL, NULL, 0, '80351110224678912', 0)",
+    ).run();
+    db.query(
+      "INSERT INTO access_requests (discord_id, username, global_name, avatar_hash, requested_at) VALUES ('223456789012345678', 'bob', NULL, NULL, 0)",
+    ).run();
+
+    expect(db.query("SELECT COUNT(*) AS n FROM guests").get()).toEqual({ n: 1 });
+    expect(db.query("SELECT COUNT(*) AS n FROM access_requests").get()).toEqual({ n: 1 });
+  });
+
+  test("refuses a guest added at a time that is not a number", () => {
+    expect(() =>
+      db
+        .query(
+          "INSERT INTO guests (discord_id, is_admin, added_by, added_at) VALUES ('123456789012345678', 0, '80351110224678912', 'today')",
+        )
+        .run(),
+    ).toThrow();
+  });
+
+  test("refuses an admin flag that is neither 0 nor 1", () => {
+    expect(() =>
+      db
+        .query(
+          "INSERT INTO guests (discord_id, is_admin, added_by, added_at) VALUES ('123456789012345678', 2, '80351110224678912', 0)",
+        )
+        .run(),
+    ).toThrow();
+  });
+
   test("refuses a value of the wrong type, because the tables are STRICT", () => {
     expect(() =>
       db

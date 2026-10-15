@@ -2,7 +2,8 @@
  * Builds the two pages for production. nginx serves the result; the Bun
  * process never bundles in production.
  *
- *   room.html, login.html   served at / and /login, revalidated on every visit
+ *   room.html, login.html,  served at /, /login and /admin, revalidated on
+ *   admin.html              every visit
  *   assets/<name>-<hash>.*  everything they load, named by content so it can
  *                           be cached for a year
  *   *.gz                    a gzip copy of each text file, for gzip_static
@@ -12,7 +13,11 @@
 import { mkdir, readdir, rm } from "node:fs/promises";
 import path from "node:path";
 
-const ENTRYPOINTS = ["src/app/room/room.html", "src/app/login/login.html"];
+const ENTRYPOINTS = [
+  "src/app/room/room.html",
+  "src/app/login/login.html",
+  "src/app/admin/admin.html",
+];
 /** Already compressed, or too small to gain: woff2 and images are left alone. */
 const COMPRESSIBLE = /\.(html|js|css|svg)$/;
 
