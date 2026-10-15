@@ -11,3 +11,6 @@ bun.lock
 
 # Prose is hand-wrapped; Prettier would only renormalise emphasis and repad tables.
 *.md
+
+# Binary fonts and their licence.
+src/app/fonts/

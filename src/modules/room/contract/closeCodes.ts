@@ -1,7 +1,7 @@
 /**
- * Shared because both ends of the room socket need the same number and neither
- * may import the other: the browser bundle cannot reach a module's `http/`, and
- * the server has no business importing its `ui/`.
+ * Part of the contract because both ends of the room socket need the same
+ * number and neither may import the other: the browser bundle cannot reach
+ * `http/`, and the server has no business importing `ui/`.
  *
  * 4000–4999 is the range reserved for applications.
  */

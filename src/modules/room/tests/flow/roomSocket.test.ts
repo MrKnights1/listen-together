@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import type { Database } from "bun:sqlite";
 import type { Server } from "bun";
-import { SESSION_ENDED_CLOSE_CODE } from "@/shared/http/closeCodes.ts";
+import { SESSION_ENDED_CLOSE_CODE } from "@/modules/room/contract/closeCodes.ts";
 import { openDatabase } from "@/shared/infrastructure/database.ts";
 import { migrate } from "@/shared/infrastructure/migrator.ts";
 import { SystemClock } from "@/shared/infrastructure/SystemClock.ts";

@@ -1,26 +1,31 @@
 .login {
-  max-width: 28rem;
-  margin: 18vh auto 0;
-  padding: 0 1.5rem;
+  display: grid;
+  gap: 1rem;
+  max-width: 30rem;
+  margin: 0 auto;
+  /* Padding, not margin: a top margin collapses through body and adds a scrollbar. */
+  padding: 18vh 1.5rem 0;
 }
 
 .login__title {
-  margin: 0 0 0.5rem;
-  font-size: 2rem;
+  font-size: var(--step-3);
+  line-height: 1.1;
 }
 
 .login__lede {
   color: var(--muted);
-  line-height: 1.5;
 }
 
 .discord-button {
-  display: inline-block;
-  margin-top: 1rem;
+  justify-self: start;
   padding: 0.75rem 1.25rem;
-  border-radius: 6px;
-  background: var(--accent);
+  border-radius: var(--radius);
+  background: var(--discord);
   color: #fff;
-  font-weight: 600;
+  font-weight: 700;
   text-decoration: none;
+}
+
+.discord-button:hover {
+  background: #4752c4;
 }

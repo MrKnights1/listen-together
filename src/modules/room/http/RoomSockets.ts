@@ -1,6 +1,9 @@
 import type { Clock } from "@/shared/domain/Clock.ts";
 import type { Timers } from "@/shared/domain/Timers.ts";
-import { NOT_ALLOWED_CLOSE_CODE, SESSION_ENDED_CLOSE_CODE } from "@/shared/http/closeCodes.ts";
+import {
+  NOT_ALLOWED_CLOSE_CODE,
+  SESSION_ENDED_CLOSE_CODE,
+} from "@/modules/room/contract/closeCodes.ts";
 import type { AddFromLink } from "@/modules/room/application/AddFromLink.ts";
 import type { ControlRoom } from "@/modules/room/application/ControlRoom.ts";
 import type { DescribePeople } from "@/modules/room/application/DescribePeople.ts";

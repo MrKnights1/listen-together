@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { NOT_ALLOWED_CLOSE_CODE, SESSION_ENDED_CLOSE_CODE } from "@/shared/http/closeCodes.ts";
+import {
+  NOT_ALLOWED_CLOSE_CODE,
+  SESSION_ENDED_CLOSE_CODE,
+} from "@/modules/room/contract/closeCodes.ts";
 import { AddFromLink } from "@/modules/room/application/AddFromLink.ts";
 import { ControlRoom } from "@/modules/room/application/ControlRoom.ts";
 import { DescribePeople } from "@/modules/room/application/DescribePeople.ts";
