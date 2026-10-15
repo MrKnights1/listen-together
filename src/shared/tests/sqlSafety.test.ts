@@ -102,6 +102,8 @@ describe("SQL injection safety", () => {
     expect(SQL_STRINGS.some((sql) => sql.path.includes("SqliteUserRepository"))).toBe(true);
     expect(SQL_STRINGS.some((sql) => sql.path.includes("SqliteSessionRepository"))).toBe(true);
     expect(SQL_STRINGS.some((sql) => sql.path.includes("SqliteTrackRepository"))).toBe(true);
+    expect(SQL_STRINGS.some((sql) => sql.path.includes("SqliteRoomRepository"))).toBe(true);
+    expect(SQL_STRINGS.some((sql) => sql.path.includes("SqliteActivityRepository"))).toBe(true);
   });
 
   /**

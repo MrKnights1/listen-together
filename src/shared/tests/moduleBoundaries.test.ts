@@ -361,14 +361,22 @@ describe("the composition root", () => {
     expect(existsSync(COMPOSITION_ROOT)).toBe(true);
   });
 
-  test("stops taking requests before it closes the database", () => {
+  /**
+   * The order nothing else checks and that fails quietly when wrong: suspended
+   * after the server stops, a late command still gets saved; closed before the
+   * room is suspended, the clean-shutdown save writes to a closed handle and the
+   * next boot comes back paused for no reason anyone can see.
+   */
+  test("stops taking requests, then saves the room, then closes the database", () => {
     const root = compositionRootCode();
     const stopsServer = root.indexOf("server.stop(");
+    const suspendsRoom = root.indexOf("roomEngine.suspend(");
     const closesDatabase = root.indexOf("db.close()");
 
-    // Named so the ordering below cannot pass by both being -1.
-    expect([stopsServer, closesDatabase]).not.toContain(-1);
-    expect(stopsServer).toBeLessThan(closesDatabase);
+    // Named so the ordering below cannot pass by all three being -1.
+    expect([stopsServer, suspendsRoom, closesDatabase]).not.toContain(-1);
+    expect(stopsServer).toBeLessThan(suspendsRoom);
+    expect(suspendsRoom).toBeLessThan(closesDatabase);
   });
 
   test("is the only thing outside the kernel and modules that wires adapters to ports", () => {
