@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "bun --hot musicplayer.ts",
     "start": "bun --smol musicplayer.ts",
-    "test": "bun test src",
+    "build:client": "bun scripts/buildClient.ts",
+    "test": "bun test src scripts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

@@ -1,0 +1,50 @@
+# /etc/systemd/system/musicplayer.service
+#
+# The room's Bun process: the API and the room socket only. nginx serves the
+# pages, and no song ever passes through here, so the budget below is small
+# on purpose — the process is expected to sit near 60 MB.
+
+[Unit]
+Description=musicplayer: the listen-together room at music.example.com
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/musicplayer
+EnvironmentFile=/root/musicplayer/.env
+# --smol: a smaller heap, collected more often.
+ExecStart=/root/.bun/bin/bun --smol musicplayer.ts
+# SIGTERM closes the sockets and saves the room as cleanly shut down, so a
+# restart within 30 seconds (a deploy) carries on playing.
+KillSignal=SIGTERM
+TimeoutStopSec=10
+Restart=on-failure
+RestartSec=2
+
+# Budget. MemoryHigh makes the kernel reclaim before MemoryMax kills.
+MemoryHigh=160M
+MemoryMax=256M
+CPUQuota=50%
+TasksMax=64
+
+# Everything read-only but the database folder. Bun's transpiler cache would
+# otherwise try to write under /root.
+Environment=BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
+ProtectSystem=strict
+ReadWritePaths=/root/musicplayer/data
+PrivateTmp=yes
+PrivateDevices=yes
+NoNewPrivileges=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+# The database and its WAL files are readable by root alone.
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
