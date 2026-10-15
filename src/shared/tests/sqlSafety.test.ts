@@ -97,8 +97,20 @@ describe("SQL injection safety", () => {
    * a green test guarding an empty set.
    */
   test("the scan actually finds the statements", () => {
-    expect(SQL_STRINGS.length).toBeGreaterThan(1);
+    expect(SQL_STRINGS.length).toBeGreaterThan(8);
     expect(SQL_STRINGS.some((sql) => sql.path.includes("migrator"))).toBe(true);
+    expect(SQL_STRINGS.some((sql) => sql.path.includes("SqliteUserRepository"))).toBe(true);
+    expect(SQL_STRINGS.some((sql) => sql.path.includes("SqliteSessionRepository"))).toBe(true);
+  });
+
+  /**
+   * And it has to find the interpolations too — the allowlist proves nothing if
+   * the regex that feeds it stopped matching.
+   */
+  test("the scan actually finds the placeholder interpolations", () => {
+    const sites = interpolationsIn(SQL_STRINGS).map((one) => one.path);
+
+    expect(sites.filter((path) => path.includes("SqliteUserRepository")).length).toBeGreaterThan(0);
   });
 
   test("no statement interpolates anything but a placeholder list", () => {

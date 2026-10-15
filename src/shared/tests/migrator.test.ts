@@ -146,9 +146,10 @@ describe("the default migrations directory", () => {
     expect(existsSync(DEFAULT)).toBe(true);
   });
 
-  test("every file in it is timestamp-named", () => {
+  test("holds the schema, and every file in it is timestamp-named", () => {
     const files = readdirSync(DEFAULT).filter((entry) => entry.endsWith(".sql"));
 
+    expect(files.length).toBeGreaterThan(0);
     expect(files.filter((file) => !/^\d{14}_[a-z0-9_]+\.sql$/.test(file))).toEqual([]);
   });
 

@@ -1,0 +1,26 @@
+.login {
+  max-width: 28rem;
+  margin: 18vh auto 0;
+  padding: 0 1.5rem;
+}
+
+.login__title {
+  margin: 0 0 0.5rem;
+  font-size: 2rem;
+}
+
+.login__lede {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.discord-button {
+  display: inline-block;
+  margin-top: 1rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+}
