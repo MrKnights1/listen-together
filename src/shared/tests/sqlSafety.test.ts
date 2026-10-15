@@ -101,6 +101,7 @@ describe("SQL injection safety", () => {
     expect(SQL_STRINGS.some((sql) => sql.path.includes("migrator"))).toBe(true);
     expect(SQL_STRINGS.some((sql) => sql.path.includes("SqliteUserRepository"))).toBe(true);
     expect(SQL_STRINGS.some((sql) => sql.path.includes("SqliteSessionRepository"))).toBe(true);
+    expect(SQL_STRINGS.some((sql) => sql.path.includes("SqliteTrackRepository"))).toBe(true);
   });
 
   /**
@@ -111,6 +112,9 @@ describe("SQL injection safety", () => {
     const sites = interpolationsIn(SQL_STRINGS).map((one) => one.path);
 
     expect(sites.filter((path) => path.includes("SqliteUserRepository")).length).toBeGreaterThan(0);
+    expect(sites.filter((path) => path.includes("SqliteTrackRepository")).length).toBeGreaterThan(
+      1,
+    );
   });
 
   test("no statement interpolates anything but a placeholder list", () => {

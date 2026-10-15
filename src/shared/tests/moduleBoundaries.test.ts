@@ -258,7 +258,7 @@ describe("module boundaries", () => {
  * modules appearing before it. Stronger than forbidding cycles and no more
  * expensive to check — it fails on the import that *starts* the problem.
  */
-const MODULE_ORDER = ["identity"];
+const MODULE_ORDER = ["identity", "catalog"];
 
 const MODULE_NAMES = readdirSync(join(SRC, "modules")).filter((entry) =>
   statSync(join(SRC, "modules", entry)).isDirectory(),
