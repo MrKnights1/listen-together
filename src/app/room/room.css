@@ -158,6 +158,11 @@
   background: var(--raised);
 }
 
+.me__listening {
+  display: grid;
+  gap: 14px;
+}
+
 .me__note {
   color: var(--muted);
   font-size: 0.875rem;
@@ -203,7 +208,9 @@
 
 .volume {
   display: flex;
+  grid-area: volume;
   align-items: center;
+  max-width: 18rem;
   gap: 8px;
 }
 
@@ -219,9 +226,12 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  font-size: 0.875rem;
+}
+
+.me__listening + .account {
   padding-top: 14px;
   border-top: 1px solid var(--line);
-  font-size: 0.875rem;
 }
 
 .account__avatar {
@@ -334,12 +344,12 @@
   overflow: hidden;
   display: grid;
   flex: none;
-  grid-template-columns: 200px auto minmax(0, 1fr);
+  grid-template-columns: 200px auto auto minmax(0, 1fr);
   grid-template-areas:
-    "tile text  text"
-    "tile seek  seek"
-    "tile main  modes"
-    "tile hint  hint";
+    "tile text text  text"
+    "tile seek seek  seek"
+    "tile main modes volume"
+    "tile hint hint  hint";
   align-items: center;
   column-gap: 24px;
   row-gap: 14px;
@@ -813,6 +823,19 @@
   }
 }
 
+/* Too narrow for one row of controls: shuffle, repeat and your volume drop below play and skip. */
+@media (max-width: 1320px) {
+  .hero {
+    grid-template-columns: 200px auto minmax(0, 1fr);
+    grid-template-areas:
+      "tile text  text"
+      "tile seek  seek"
+      "tile main  main"
+      "tile modes volume"
+      "tile hint  hint";
+  }
+}
+
 /* Between desktop and phone: narrower side panes, and the queue drops its owner names for the colour bar. */
 @media (max-width: 1180px) {
   .shell {
@@ -830,6 +853,19 @@
 
   .row .owner {
     display: none;
+  }
+}
+
+/* Narrowest three-pane widths: your volume gets a row of its own, under shuffle and repeat. */
+@media (max-width: 1080px) {
+  .hero {
+    grid-template-areas:
+      "tile text   text"
+      "tile seek   seek"
+      "tile main   main"
+      "tile modes  modes"
+      "tile volume volume"
+      "tile hint   hint";
   }
 }
 
@@ -872,10 +908,11 @@
     order: 3;
     grid-template-columns: 200px minmax(0, 1fr) auto;
     grid-template-areas:
-      "tile text text"
-      "tile main main"
-      "seek seek modes"
-      "hint hint hint";
+      "tile   text   text"
+      "tile   main   main"
+      "seek   seek   seek"
+      "volume volume modes"
+      "hint   hint   hint";
     column-gap: 16px;
     row-gap: 10px;
     padding: 12px;

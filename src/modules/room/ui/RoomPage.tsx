@@ -164,32 +164,28 @@ export function RoomPage({ me }: { me: SessionUser }) {
             <h1 className="brand__name">Listening room</h1>
           </header>
           <ListenerList listeners={room.listeners} people={people} you={room.you} />
-          <section className="me" aria-labelledby="me-heading">
-            <div>
-              <h2 id="me-heading">Your listening</h2>
-              <p className="me__note">Only you hear these. Nobody else&apos;s sound changes.</p>
-            </div>
+          <div className="me">
             {listening && (
-              <div className="me__listen">
-                <ListenButton
-                  listening={listening}
-                  onStart={() => setListening(true)}
-                  onStop={() => setListening(false)}
-                />
-                <SyncNotice
-                  listening={listening}
-                  status={player.status}
-                  errorCode={player.errorCode}
-                  onResync={player.resync}
-                />
-              </div>
+              <section className="me__listening" aria-labelledby="me-heading">
+                <div>
+                  <h2 id="me-heading">Your listening</h2>
+                  <p className="me__note">Only you hear these. Nobody else&apos;s sound changes.</p>
+                </div>
+                <div className="me__listen">
+                  <ListenButton
+                    listening={listening}
+                    onStart={() => setListening(true)}
+                    onStop={() => setListening(false)}
+                  />
+                  <SyncNotice
+                    listening={listening}
+                    status={player.status}
+                    errorCode={player.errorCode}
+                    onResync={player.resync}
+                  />
+                </div>
+              </section>
             )}
-            <VolumeControl
-              volume={audio.volume}
-              muted={audio.muted}
-              onVolume={(volume) => changeAudio({ ...audio, volume })}
-              onMuted={(muted) => changeAudio({ ...audio, muted })}
-            />
             <div className="account">
               <img className="account__avatar" src={me.avatarUrl} alt="" width={32} height={32} />
               <div className="account__text">
@@ -202,7 +198,7 @@ export function RoomPage({ me }: { me: SessionUser }) {
                 </span>
               </div>
             </div>
-          </section>
+          </div>
         </div>
 
         <main className="pane pane--centre">
@@ -232,10 +228,16 @@ export function RoomPage({ me }: { me: SessionUser }) {
               onShuffle={() => control({ type: "shuffle", ownerId: null })}
               onRepeat={(mode: RepeatMode) => control({ type: "repeat", mode })}
             />
+            <VolumeControl
+              volume={audio.volume}
+              muted={audio.muted}
+              onVolume={(volume) => changeAudio({ ...audio, volume })}
+              onMuted={(muted) => changeAudio({ ...audio, muted })}
+            />
             {listening ? (
               <p className="hero__hint">
                 <Icon name="people" />
-                These controls move the room for everyone.
+                Volume is just yours. The rest moves the room for everyone.
               </p>
             ) : (
               <div className="hero__listen">

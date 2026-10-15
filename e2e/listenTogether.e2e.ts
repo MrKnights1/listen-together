@@ -12,6 +12,7 @@ interface Playback {
   at: number;
   positionMs: number;
   paused: boolean;
+  muted: boolean;
 }
 
 /** What this browser's YouTube player is actually doing — read from its video element, not from our page. */
@@ -22,7 +23,12 @@ async function playback(page: Page): Promise<Playback | null> {
     const video = document.querySelector("video");
     return video === null
       ? null
-      : { at: Date.now(), positionMs: video.currentTime * 1000, paused: video.paused };
+      : {
+          at: Date.now(),
+          positionMs: video.currentTime * 1000,
+          paused: video.paused,
+          muted: video.muted,
+        };
   });
 }
 
@@ -92,6 +98,19 @@ test("two listeners hear the same moment, and each one's controls reach the othe
       await expect(page.locator(".now__title")).toHaveText(first.title);
     }
     await expect.poll(async () => (await readBoth(ada, bob)).apartMs).toBeLessThan(SAME_MOMENT_MS);
+  });
+
+  await test.step("one mutes in the player, and only their own sound goes", async () => {
+    const nowPlaying = ada.getByRole("region", { name: "Now playing" });
+    await expect(nowPlaying.getByRole("slider", { name: "Volume" })).toBeVisible();
+    await expect(ada.getByRole("slider", { name: "Volume" })).toHaveCount(1);
+
+    await nowPlaying.getByRole("button", { name: "Mute" }).click();
+    await expect.poll(async () => (await playback(ada))?.muted).toBe(true);
+    expect((await playback(bob))?.muted).toBe(false);
+
+    await nowPlaying.getByRole("button", { name: "Unmute" }).click();
+    await expect.poll(async () => (await playback(ada))?.muted).toBe(false);
   });
 
   await test.step("one pauses, and the other stops at the same place", async () => {
