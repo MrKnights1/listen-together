@@ -1,9 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { decide } from "@/modules/room/domain/decide.ts";
-import { MAX_LANE_ENTRIES, MAX_ROOM_ENTRIES } from "@/modules/room/domain/limits.ts";
+import { MAX_ENTRIES_PER_PERSON, MAX_ROOM_ENTRIES } from "@/modules/room/domain/limits.ts";
 import { positionAt } from "@/modules/room/domain/playback.ts";
 import { emptyRoom, type RoomState } from "@/modules/room/domain/RoomState.ts";
-import { upcoming } from "@/modules/room/domain/upcoming.ts";
 import {
   apply,
   context,
@@ -16,9 +15,9 @@ import {
   songs,
 } from "@/modules/room/tests/support/room.ts";
 
-function roomWith(...lanes: [string, number][]): RoomState {
+function roomWith(...adds: [string, number][]): RoomState {
   let state = emptyRoom();
-  for (const [ownerId, count] of lanes) {
+  for (const [ownerId, count] of adds) {
     state = apply(state, { type: "add", ownerId, tracks: songs(ownerId, count) });
   }
   return state;
@@ -71,7 +70,7 @@ describe("add", () => {
     expect(decision.kind === "accepted" ? decision.add?.duplicates : null).toHaveLength(1);
   });
 
-  test("lets two people queue the same song in their own lists", () => {
+  test("lets two people queue the same song", () => {
     const shared = { entryId: "a1", trackId: "youtube:shared00000", durationMs: SONG_MS };
     let state = roomWith(["cy", 1]);
     state = apply(state, { type: "add", ownerId: "ada", tracks: [shared] });
@@ -85,8 +84,8 @@ describe("add", () => {
     expect(decision.kind === "accepted" ? decision.add?.added : null).toEqual(["b1"]);
   });
 
-  test("stops at the limit of one person's list and counts what was left out", () => {
-    const state = roomWith(["ada", MAX_LANE_ENTRIES - 1]);
+  test("stops at one person's share of the queue and counts what was left out", () => {
+    const state = roomWith(["ada", MAX_ENTRIES_PER_PERSON - 1]);
 
     const decision = decide(
       state,
@@ -94,7 +93,7 @@ describe("add", () => {
       context(),
     );
 
-    // One playing, MAX - 2 waiting: room for two more in the lane.
+    // One playing, MAX - 2 waiting: room for two more of theirs.
     expect(decision.kind === "accepted" ? decision.add?.added.length : null).toBe(2);
     expect(decision.kind === "accepted" ? decision.add?.overflow : null).toBe(1);
   });
@@ -205,12 +204,13 @@ describe("pause, resume and seek", () => {
 });
 
 describe("skip and remove", () => {
-  test("skip moves everybody to whoever's turn is next", () => {
+  test("skip moves everybody to the next song in the queue", () => {
     const state = roomWith(["ada", 2], ["bob", 1]);
+    const [next] = state.queue;
 
     const skipped = apply(state, { type: "skip", entryId: currentId(state) }, NOW + 10_000);
 
-    expect(playingOwner(skipped)).toBe("bob");
+    expect(currentId(skipped)).toBe(next ?? "");
     expect(skipped.current?.positionMs).toBe(0);
     expect(skipped.current?.anchorAt).toBe(NOW + 10_000);
   });
@@ -235,24 +235,23 @@ describe("skip and remove", () => {
     expect(removed.entries[playing]).toBeUndefined();
   });
 
-  test("removing a queued song takes it out and keeps the turn order", () => {
+  test("removing a queued song takes it out and keeps the rest in order", () => {
     const state = roomWith(["ada", 3], ["bob", 1]);
-    const [nextOfAda] = state.lanes["ada"] ?? [];
+    const [first, ...rest] = state.queue;
 
-    const removed = apply(state, { type: "remove", entryId: nextOfAda ?? "" });
+    const removed = apply(state, { type: "remove", entryId: first ?? "" });
 
-    expect(removed.lanes["ada"]).toHaveLength(1);
-    expect(removed.keys).toEqual(state.keys);
+    expect(removed.queue).toEqual(rest);
+    expect(removed.entries[first ?? ""]).toBeUndefined();
   });
 
-  test("removing someone's last queued song takes them out of the rotation", () => {
+  test("removing the last queued song leaves the queue empty", () => {
     const state = roomWith(["cy", 1], ["ada", 1]);
-    const [only] = state.lanes["ada"] ?? [];
+    const [only] = state.queue;
 
     const removed = apply(state, { type: "remove", entryId: only ?? "" });
 
-    expect(removed.lanes["ada"]).toBeUndefined();
-    expect(removed.keys["ada"]).toBeUndefined();
+    expect(removed.queue).toEqual([]);
   });
 
   test("removing a song that is already gone is stale", () => {
@@ -264,34 +263,35 @@ describe("skip and remove", () => {
 });
 
 describe("move", () => {
-  test("reorders a person's list", () => {
+  test("moves a song to another place in the queue", () => {
     const state = roomWith(["cy", 1], ["ada", 3]);
-    const [a, b, c] = firstThree(state, "ada");
+    const [a, b, c] = firstThree(state);
 
-    const moved = apply(state, { type: "move", entryId: c ?? "", toIndex: 0 });
+    const moved = apply(state, { type: "move", entryId: c, toIndex: 0 });
 
-    expect(moved.lanes["ada"]).toEqual([c, a, b]);
+    expect(moved.queue).toEqual([c, a, b]);
   });
 
-  test("keeps the target index inside the list", () => {
-    const state = roomWith(["cy", 1], ["ada", 3]);
-    const [a, b, c] = firstThree(state, "ada");
+  test("moves a song past somebody else's", () => {
+    const state = roomWith(["cy", 1], ["ada", 1], ["bob", 1]);
+    const [adas, bobs] = state.queue;
 
-    expect(apply(state, { type: "move", entryId: a ?? "", toIndex: 99 }).lanes["ada"]).toEqual([
-      b,
-      c,
-      a,
-    ]);
-    expect(apply(state, { type: "move", entryId: c ?? "", toIndex: -4 }).lanes["ada"]).toEqual([
-      c,
-      a,
-      b,
-    ]);
+    const moved = apply(state, { type: "move", entryId: bobs ?? "", toIndex: 0 });
+
+    expect<(string | undefined)[]>(moved.queue).toEqual([bobs, adas]);
+  });
+
+  test("keeps the target index inside the queue", () => {
+    const state = roomWith(["cy", 1], ["ada", 3]);
+    const [a, b, c] = firstThree(state);
+
+    expect(apply(state, { type: "move", entryId: a, toIndex: 99 }).queue).toEqual([b, c, a]);
+    expect(apply(state, { type: "move", entryId: c, toIndex: -4 }).queue).toEqual([c, a, b]);
   });
 
   test("moving to where it already is changes nothing", () => {
     const state = roomWith(["cy", 1], ["ada", 3]);
-    const [a] = state.lanes["ada"] ?? [];
+    const [a] = state.queue;
 
     expect(decide(state, { type: "move", entryId: a ?? "", toIndex: 0 }, context())).toEqual({
       kind: "accepted",
@@ -312,9 +312,9 @@ describe("move", () => {
 });
 
 describe("shuffle", () => {
-  test("mixes a person's list and keeps whose turn it is", () => {
-    const state = roomWith(["cy", 1], ["ada", 3], ["bob", 3]);
-    const before = state.lanes["ada"] ?? [];
+  test("shuffles one person's songs among the places they hold, and nobody else's", () => {
+    const state = roomWith(["cy", 1], ["ada", 1], ["bob", 1], ["ada", 1], ["bob", 1], ["ada", 1]);
+    const [a1, b1, a2, b2, a3] = state.queue;
 
     // Fisher–Yates picks: index 2 swaps with 0, then index 1 stays.
     const shuffled = apply(
@@ -324,13 +324,7 @@ describe("shuffle", () => {
       new ScriptedRandom([0, 1]),
     );
 
-    expect<(string | undefined)[] | undefined>(shuffled.lanes["ada"]).toEqual([
-      before[2],
-      before[1],
-      before[0],
-    ]);
-    expect(shuffled.lanes["bob"]).toEqual(state.lanes["bob"]);
-    expect(shuffled.keys).toEqual(state.keys);
+    expect<(string | undefined)[]>(shuffled.queue).toEqual([a3, b1, a2, b2, a1]);
   });
 
   test("shuffling everybody keeps every song exactly once", () => {
@@ -343,11 +337,8 @@ describe("shuffle", () => {
       new ScriptedRandom([3, 1, 2, 0, 4, 2, 1, 0]),
     );
 
-    for (const ownerId of ["ada", "bob"]) {
-      expect([...(shuffled.lanes[ownerId] ?? [])].sort()).toEqual(
-        [...(state.lanes[ownerId] ?? [])].sort(),
-      );
-    }
+    expect(shuffled.queue).not.toEqual(state.queue);
+    expect([...shuffled.queue].sort()).toEqual([...state.queue].sort());
   });
 
   test("a list of one has nothing to shuffle", () => {
@@ -361,7 +352,7 @@ describe("shuffle", () => {
 });
 
 describe("repeat", () => {
-  test("repeat one replays the song when it ends, without using up a turn", () => {
+  test("repeat one replays the song when it ends, and the queue waits", () => {
     let state = roomWith(["ada", 1], ["bob", 1]);
     const playing = currentId(state);
     state = apply(state, { type: "repeat", mode: "one" });
@@ -370,7 +361,7 @@ describe("repeat", () => {
 
     expect(currentId(after)).toBe(playing);
     expect(after.current?.positionMs).toBe(0);
-    expect(after.keys).toEqual(state.keys);
+    expect(after.queue).toEqual(state.queue);
   });
 
   test("skipping under repeat one still moves on", () => {
@@ -380,14 +371,15 @@ describe("repeat", () => {
     expect(playingOwner(apply(state, { type: "skip", entryId: currentId(state) }))).toBe("bob");
   });
 
-  test("repeat all puts a finished song back at the end of its owner's list", () => {
-    let state = roomWith(["ada", 2]);
+  test("repeat all puts a finished song back at the end of the queue", () => {
+    let state = roomWith(["ada", 2], ["bob", 1]);
     const first = currentId(state);
+    const [, bobs] = state.queue;
     state = apply(state, { type: "repeat", mode: "all" });
 
     const { state: after } = finishSong(state, NOW);
 
-    expect(after.lanes["ada"]).toEqual([first]);
+    expect<(string | undefined)[]>(after.queue).toEqual([bobs, first]);
     expect(after.entries[first]).toBeDefined();
   });
 
@@ -462,45 +454,5 @@ describe("version", () => {
     const state = roomWith(["ada", 1]);
 
     expect(apply(state, { type: "repeat", mode: "off" }).version).toBe(state.version);
-  });
-});
-
-describe("upcoming", () => {
-  /**
-   * Under repeat-all a short list comes round again before a long one is done:
-   * the up-next list shows each song once, at its first coming play.
-   */
-  test("shows each song once, by its next play, when repeat all brings short lists round again", () => {
-    let state = roomWith(["cy", 1], ["ada", 4], ["bob", 1]);
-    state = apply(state, { type: "repeat", mode: "all" });
-
-    const order = upcoming(state);
-    const owners = order.map((id) => state.entries[id]?.ownerId);
-
-    expect(order).toHaveLength(5);
-    expect(new Set(order).size).toBe(5);
-    expect(owners).toEqual(["ada", "bob", "ada", "ada", "ada"]);
-  });
-
-  test("is empty when nothing waits", () => {
-    expect(upcoming(roomWith(["ada", 1]))).toEqual([]);
-  });
-
-  test("interleaves people by turn", () => {
-    const state = roomWith(["ada", 3], ["bob", 2]);
-    const owners = upcoming(state).map((id) => state.entries[id]?.ownerId);
-
-    expect(owners).toEqual(["bob", "ada", "bob", "ada"]);
-  });
-
-  test("lists every queued song exactly once, with repeat all on", () => {
-    let state = roomWith(["ada", 3], ["bob", 2]);
-    state = apply(state, { type: "repeat", mode: "all" });
-
-    const order = upcoming(state);
-
-    expect(order).toHaveLength(4);
-    expect(new Set(order).size).toBe(4);
-    expect(order).not.toContain(currentId(state));
   });
 });

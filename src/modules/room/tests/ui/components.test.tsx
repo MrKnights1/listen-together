@@ -21,15 +21,8 @@ const people = {
 };
 const noop = () => undefined;
 
-function row(entryId: string, ownerId: string, laneIndex: number, laneLength: number): QueueRow {
-  return {
-    entryId,
-    ownerId,
-    track: trackInfo(entryId),
-    durationMs: 185_000,
-    laneIndex,
-    laneLength,
-  };
+function row(entryId: string, ownerId: string): QueueRow {
+  return { entryId, ownerId, track: trackInfo(entryId), durationMs: 185_000 };
 }
 
 describe("NowPlaying", () => {
@@ -200,7 +193,7 @@ describe("UpNextList", () => {
   test("numbers the rows in play order and names each song's artist", () => {
     const html = renderToStaticMarkup(
       <UpNextList
-        rows={[row("a1", "ada", 0, 1), row("b1", "bob", 0, 1)]}
+        rows={[row("a1", "ada"), row("b1", "bob")]}
         people={people}
         you="ada"
         onMove={noop}
@@ -217,7 +210,7 @@ describe("UpNextList", () => {
   test("lists songs in play order, each in its owner's colour", () => {
     const html = renderToStaticMarkup(
       <UpNextList
-        rows={[row("a1", "ada", 0, 2), row("b1", "bob", 0, 1), row("a2", "ada", 1, 2)]}
+        rows={[row("a1", "ada"), row("b1", "bob"), row("a2", "ada")]}
         people={people}
         you="ada"
         onMove={noop}
@@ -231,10 +224,10 @@ describe("UpNextList", () => {
     expect(html).toContain("--owner:");
   });
 
-  test("names every row button for a screen reader, and disables moves that cannot happen", () => {
+  test("says songs play in the order they were added", () => {
     const html = renderToStaticMarkup(
       <UpNextList
-        rows={[row("a1", "ada", 0, 1)]}
+        rows={[row("a1", "ada")]}
         people={people}
         you="ada"
         onMove={noop}
@@ -243,7 +236,44 @@ describe("UpNextList", () => {
       />,
     );
 
-    expect(html).toContain('aria-label="Move Song a1 earlier in your list"');
+    expect(html).toContain("Songs play in the order they were added.");
+    expect(html).not.toContain("rotate");
+  });
+
+  test("lets any song move up or down the whole queue, except past either end", () => {
+    const html = renderToStaticMarkup(
+      <UpNextList
+        rows={[row("a1", "ada"), row("b1", "bob"), row("a2", "ada")]}
+        people={people}
+        you="ada"
+        onMove={noop}
+        onRemove={noop}
+        onShuffleMine={noop}
+      />,
+    );
+    const disabled = (label: string) =>
+      new RegExp(`disabled=""[^>]*aria-label="${label}"`).test(html);
+
+    expect(disabled("Move Song a1 earlier in the queue")).toBe(true);
+    expect(disabled("Move Song a1 later in the queue")).toBe(false);
+    expect(disabled("Move Song b1 earlier in the queue")).toBe(false);
+    expect(disabled("Move Song b1 later in the queue")).toBe(false);
+    expect(disabled("Move Song a2 later in the queue")).toBe(true);
+  });
+
+  test("names every row button for a screen reader, and disables moves that cannot happen", () => {
+    const html = renderToStaticMarkup(
+      <UpNextList
+        rows={[row("a1", "ada")]}
+        people={people}
+        you="ada"
+        onMove={noop}
+        onRemove={noop}
+        onShuffleMine={noop}
+      />,
+    );
+
+    expect(html).toContain('aria-label="Move Song a1 earlier in the queue"');
     expect(html).toContain('aria-label="Remove Song a1 from the queue"');
     expect(html.match(/disabled=""/g)?.length).toBeGreaterThanOrEqual(2);
   });

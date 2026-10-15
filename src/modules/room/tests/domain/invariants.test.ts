@@ -3,11 +3,8 @@ import type { RoomCommand } from "@/modules/room/domain/commands.ts";
 import { decide } from "@/modules/room/domain/decide.ts";
 import { commit } from "@/modules/room/domain/evolve.ts";
 import { endsAt } from "@/modules/room/domain/playback.ts";
-import { ownerOfCurrent } from "@/modules/room/domain/rotation.ts";
-import { emptyRoom, queuedCount, type RoomState } from "@/modules/room/domain/RoomState.ts";
-import { upcoming } from "@/modules/room/domain/upcoming.ts";
+import { emptyRoom, type RoomState } from "@/modules/room/domain/RoomState.ts";
 import { NOW, SeededRandom, songs } from "@/modules/room/tests/support/room.ts";
-import { upcomingByEvolve } from "@/modules/room/tests/support/upcomingByEvolve.ts";
 
 /**
  * Random command sequences against the rules that must hold after every one.
@@ -16,8 +13,6 @@ import { upcomingByEvolve } from "@/modules/room/tests/support/upcomingByEvolve.
 const OWNERS = ["ada", "bob", "cy", "dee"];
 const SCENARIOS = 300;
 const STEPS = 150;
-/** The reference is slow; checking it on every step of the first scenarios is plenty. */
-const REFERENCE_SCENARIOS = 60;
 
 function pick<T>(random: SeededRandom, items: readonly T[]): T {
   const item = items[random.int(items.length)];
@@ -30,8 +25,7 @@ function randomCommand(
   random: SeededRandom,
   now: number,
 ): { command: RoomCommand; now: number } {
-  const queued = Object.values(state.lanes).flat();
-  const anyEntry = [...queued, state.current?.entryId ?? "gone"];
+  const anyEntry = [...state.queue, state.current?.entryId ?? "gone"];
   const roll = random.int(100);
 
   if (roll < 30) {
@@ -97,43 +91,45 @@ function randomCommand(
   return { command: { type: "skip", entryId: `stale-${now}` }, now };
 }
 
-/** The structural rules: every entry in exactly one place, every place-in-line justified. */
+/** The structural rules: every entry in exactly one place, and nothing queued that does not exist. */
 function structuralViolations(state: RoomState): string[] {
   const problems: string[] = [];
   const seen = new Set<string>();
   const current = state.current?.entryId;
   if (current !== undefined) seen.add(current);
 
-  for (const [ownerId, lane] of Object.entries(state.lanes)) {
-    if (lane.length === 0) problems.push(`${ownerId} has an empty lane`);
-    for (const entryId of lane) {
-      if (seen.has(entryId)) problems.push(`${entryId} appears twice`);
-      seen.add(entryId);
-      if (state.entries[entryId]?.ownerId !== ownerId)
-        problems.push(`${entryId} is in the wrong lane`);
-    }
+  for (const entryId of state.queue) {
+    if (seen.has(entryId)) problems.push(`${entryId} appears twice`);
+    seen.add(entryId);
+    if (state.entries[entryId] === undefined) problems.push(`${entryId} is queued but missing`);
   }
 
   const entryIds = Object.keys(state.entries).sort();
   if (JSON.stringify(entryIds) !== JSON.stringify([...seen].sort())) {
-    problems.push("entries and lanes+current disagree");
+    problems.push("entries and queue+current disagree");
   }
 
-  const playing = ownerOfCurrent(state);
-  for (const ownerId of Object.keys(state.lanes)) {
-    const waiting = state.keys[ownerId] !== undefined;
-    if (ownerId === playing && waiting) problems.push(`${ownerId} is in line while playing`);
-    if (ownerId !== playing && !waiting) problems.push(`${ownerId} has songs but no place in line`);
-  }
-  for (const ownerId of Object.keys(state.keys)) {
-    if (state.lanes[ownerId] === undefined)
-      problems.push(`${ownerId} is in line with nothing queued`);
-  }
+  return problems;
+}
 
-  const keys = Object.values(state.keys);
-  if (new Set(keys).size !== keys.length) problems.push("two people share a place in line");
-  if (keys.some((key) => key > state.counter)) problems.push("a key is ahead of the counter");
+/**
+ * First come, first played: songs that stay queued keep their order, and a
+ * song new to the queue never lands ahead of one already in it. Only a move or
+ * a shuffle may reorder.
+ */
+function orderViolations(before: RoomState, after: RoomState): string[] {
+  const wasQueued = new Set(before.queue);
+  const isQueued = new Set(after.queue);
+  const kept = after.queue.filter((entryId) => wasQueued.has(entryId));
+  const expected = before.queue.filter((entryId) => isQueued.has(entryId));
 
+  const problems: string[] = [];
+  if (JSON.stringify(kept) !== JSON.stringify(expected))
+    problems.push("queued songs changed order");
+  const firstNew = after.queue.findIndex((entryId) => !wasQueued.has(entryId));
+  if (firstNew !== -1 && after.queue.slice(firstNew).some((entryId) => wasQueued.has(entryId))) {
+    problems.push("a new song went ahead of one already queued");
+  }
   return problems;
 }
 
@@ -145,27 +141,15 @@ describe("room invariants under random commands", () => {
       const random = new SeededRandom(seed);
       let state = emptyRoom();
       let now = NOW;
-      /** Per owner, the step at which their last turn began. */
-      const lastTurn = new Map<string, number>();
-      /** Per step, who was waiting in line. */
-      const waitingAt: Set<string>[] = [];
-      const turnsAt: (string | null)[] = [];
-      /** "Up next" for the current state, carried forward so each step computes it once. */
-      let order: string[] = [];
 
       for (let step = 0; step < STEPS && failures.length === 0; step += 1) {
         const generated = randomCommand(state, random, now);
         now = Math.max(now, generated.now) + random.int(5000);
         const before = state;
-        const predictedNext = order[0];
 
         const decision = decide(before, generated.command, { now, random });
-        if (decision.kind === "rejected") {
-          // A refusal changes nothing: there is no state to compare, only the claim.
-          turnsAt.push(null);
-          waitingAt.push(new Set(Object.keys(before.keys)));
-          continue;
-        }
+        // A refusal changes nothing: there is no state to compare, only the claim.
+        if (decision.kind === "rejected") continue;
 
         state = commit(before, decision.events);
         const where = `seed ${seed}, step ${step}, ${generated.command.type}`;
@@ -174,52 +158,21 @@ describe("room invariants under random commands", () => {
 
         const expectedVersion = before.version + (decision.events.length > 0 ? 1 : 0);
         if (state.version !== expectedVersion) failures.push(`${where}: version ${state.version}`);
-        if (state.counter < before.counter) failures.push(`${where}: counter went backwards`);
 
-        order = upcoming(state);
-        if (order.length !== queuedCount(state) || new Set(order).size !== order.length) {
-          failures.push(`${where}: upcoming is not each queued entry once`);
-        }
-        // The fast simulation must say exactly what folding real events says.
-        if (seed <= REFERENCE_SCENARIOS) {
-          const reference = upcomingByEvolve(state);
-          if (JSON.stringify(order) !== JSON.stringify(reference)) {
-            failures.push(`${where}: upcoming disagrees with evolve`);
-          }
+        const reorders = generated.command.type === "move" || generated.command.type === "shuffle";
+        if (!reorders) {
+          for (const problem of orderViolations(before, state))
+            failures.push(`${where}: ${problem}`);
         }
 
-        // A skip must land exactly where "up next" said it would.
-        if (generated.command.type === "skip" && predictedNext !== undefined) {
-          if (state.current?.entryId !== predictedNext)
-            failures.push(`${where}: skip broke upcoming[0]`);
-        }
-
-        // A turn is a song starting fresh — not repeat-one replaying the same one.
-        const advanced = decision.events.find((event) => event.type === "advanced");
-        const replayed =
-          advanced?.type === "advanced" &&
-          advanced.reason === "ended" &&
-          before.repeat === "one" &&
-          before.current?.entryId === state.current?.entryId;
-        const turnTaker = advanced !== undefined && !replayed ? ownerOfCurrent(state) : null;
-        turnsAt.push(turnTaker);
-        waitingAt.push(new Set(Object.keys(state.keys)));
-
-        if (turnTaker !== null) {
-          const previous = lastTurn.get(turnTaker);
-          if (previous !== undefined) {
-            for (const other of OWNERS) {
-              if (other === turnTaker) continue;
-              const waitedThroughout = waitingAt
-                .slice(previous, step)
-                .every((set) => set.has(other));
-              const hadTurn = turnsAt.slice(previous + 1, step).includes(other);
-              if (waitedThroughout && !hadTurn) {
-                failures.push(`${where}: ${turnTaker} played twice while ${other} waited`);
-              }
-            }
-          }
-          lastTurn.set(turnTaker, step);
+        // Moving on — a skip, or a song ending without repeat-one — plays the head of the queue.
+        const movesOn =
+          decision.events.some((event) => event.type === "advanced") &&
+          !(generated.command.type === "track_ended" && before.repeat === "one");
+        const head = before.queue[0];
+        if (movesOn && generated.command.type !== "add" && head !== undefined) {
+          if (state.current?.entryId !== head)
+            failures.push(`${where}: did not play the next song`);
         }
       }
     }
@@ -227,16 +180,22 @@ describe("room invariants under random commands", () => {
     expect(failures.slice(0, 5)).toEqual([]);
   });
 
-  /** The checker must be able to fail, or a green run means nothing. */
+  /** The checkers must be able to fail, or a green run means nothing. */
   test("the structural check catches a broken room", () => {
     const broken: RoomState = {
       ...emptyRoom(),
       entries: { e1: { id: "e1", ownerId: "ada", trackId: "t", durationMs: 1, addedAt: 0 } },
-      lanes: { ada: ["e1", "e1"], bob: [] },
-      keys: { carl: 5 },
-      counter: 1,
+      queue: ["e1", "e1", "ghost"],
     };
 
-    expect(structuralViolations(broken).length).toBeGreaterThan(3);
+    expect(structuralViolations(broken).length).toBeGreaterThanOrEqual(3);
+  });
+
+  test("the order check catches a song that jumped the queue", () => {
+    const before: RoomState = { ...emptyRoom(), queue: ["a", "b"] };
+
+    expect(orderViolations(before, { ...before, queue: ["b", "a"] })).not.toEqual([]);
+    expect(orderViolations(before, { ...before, queue: ["new", "a", "b"] })).not.toEqual([]);
+    expect(orderViolations(before, { ...before, queue: ["a", "b", "new"] })).toEqual([]);
   });
 });

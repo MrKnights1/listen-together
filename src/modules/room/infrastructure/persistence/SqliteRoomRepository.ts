@@ -50,21 +50,53 @@ export class SqliteRoomRepository implements RoomRepository {
  */
 function parseRoomState(json: string): RoomState {
   const value: unknown = JSON.parse(json);
-  const record = (candidate: unknown): candidate is Record<string, unknown> =>
-    typeof candidate === "object" && candidate !== null && !Array.isArray(candidate);
+  if (!isRecord(value)) throw notTheRoom();
 
+  const queue: unknown[] = Array.isArray(value["queue"])
+    ? (value["queue"] as unknown[])
+    : fromTurns(value);
   if (
-    !record(value) ||
     typeof value["version"] !== "number" ||
-    typeof value["counter"] !== "number" ||
-    !record(value["entries"]) ||
-    !record(value["lanes"]) ||
-    !record(value["keys"]) ||
-    !(value["current"] === null || record(value["current"])) ||
+    !isRecord(value["entries"]) ||
+    !queue.every((entryId): entryId is string => typeof entryId === "string") ||
+    !(value["current"] === null || isRecord(value["current"])) ||
     !["off", "one", "all"].includes(value["repeat"] as string)
   ) {
-    throw new Error("The saved room is not in the expected shape; refusing to start with it.");
+    throw notTheRoom();
   }
 
-  return value as unknown as RoomState;
+  return {
+    version: value["version"],
+    entries: value["entries"] as RoomState["entries"],
+    queue,
+    current: value["current"] as RoomState["current"],
+    repeat: value["repeat"] as RoomState["repeat"],
+  };
+}
+
+const isRecord = (candidate: unknown): candidate is Record<string, unknown> =>
+  typeof candidate === "object" && candidate !== null && !Array.isArray(candidate);
+
+const notTheRoom = () =>
+  new Error("The saved room is not in the expected shape; refusing to start with it.");
+
+/**
+ * A room saved while songs still took turns between people kept one list per
+ * person. Read once, the first time the server boots after the change: its
+ * songs line up in the order they were added, and each person's list keeps its
+ * own order where songs were added together. The next save writes the queue.
+ */
+function fromTurns(value: Record<string, unknown>): unknown[] {
+  const lanes = value["lanes"];
+  const entries = value["entries"];
+  if (!isRecord(lanes) || !isRecord(entries)) throw notTheRoom();
+
+  const addedAt = (entryId: unknown): number => {
+    const entry = typeof entryId === "string" ? entries[entryId] : undefined;
+    return isRecord(entry) && typeof entry["addedAt"] === "number" ? entry["addedAt"] : 0;
+  };
+  // Array.prototype.sort is stable, so songs added at the same moment keep their list order.
+  return Object.values(lanes)
+    .flatMap((lane) => (Array.isArray(lane) ? (lane as unknown[]) : []))
+    .sort((a, b) => addedAt(a) - addedAt(b));
 }

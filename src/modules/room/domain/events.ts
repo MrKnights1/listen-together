@@ -19,5 +19,6 @@ export type RoomEvent =
   | { type: "seeked"; positionMs: number; at: number }
   | { type: "removed"; entryId: string }
   | { type: "moved"; entryId: string; toIndex: number }
-  | { type: "shuffled"; lanes: Record<string, string[]> }
+  /** The whole queue in its new order. */
+  | { type: "shuffled"; queue: string[] }
   | { type: "repeat_set"; mode: RepeatMode };

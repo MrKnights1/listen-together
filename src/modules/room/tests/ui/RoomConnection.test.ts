@@ -56,9 +56,7 @@ const welcome: ServerMessage = {
     state: {
       version: 0,
       entries: {},
-      lanes: {},
-      keys: {},
-      counter: 0,
+      queue: [],
       current: null,
       repeat: "off",
     },

@@ -107,7 +107,7 @@ export function activityLine(entry: ActivityEntry): string {
     case "moved":
       return `moved ${title}`;
     case "shuffled":
-      return entry.detail.ownerId === null ? "shuffled everyone's lists" : "shuffled a list";
+      return entry.detail.ownerId === null ? "shuffled the queue" : "shuffled their songs";
     case "repeat_set":
       return entry.detail.mode === "off"
         ? "turned repeat off"

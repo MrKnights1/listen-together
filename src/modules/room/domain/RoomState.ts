@@ -29,36 +29,22 @@ export interface RoomState {
   version: number;
   /** Every entry in the room: the current one and all queued ones. */
   entries: Record<string, QueueEntry>;
-  /** Each person's queued entries, in their order. Never holds the current entry, never an empty list. */
-  lanes: Record<string, string[]>;
-  /**
-   * The line: a rotation key per person waiting, lowest goes next. Everybody
-   * with a non-empty list holds one, except whoever's song is playing — they
-   * rejoin at the back when it ends.
-   */
-  keys: Record<string, number>;
-  /** The last rotation key handed out. Only ever increases. */
-  counter: number;
+  /** The queued entries, in the order they will play: the order they were added, unless moved. Never holds the current entry. */
+  queue: string[];
   current: NowPlaying | null;
   repeat: RepeatMode;
 }
 
 export function emptyRoom(): RoomState {
-  return { version: 0, entries: {}, lanes: {}, keys: {}, counter: 0, current: null, repeat: "off" };
+  return { version: 0, entries: {}, queue: [], current: null, repeat: "off" };
 }
 
-/** How many entries are waiting, not counting the one playing. */
-export function queuedCount(state: RoomState): number {
-  return Object.values(state.lanes).reduce((total, lane) => total + lane.length, 0);
+/** Where a queued entry is in the line, or -1 if it is not queued. */
+export function queueIndex(state: RoomState, entryId: string): number {
+  return state.queue.indexOf(entryId);
 }
 
-/** The owner's lane and the entry's index in it, or null if it is not queued. */
-export function laneOf(
-  state: RoomState,
-  entryId: string,
-): { ownerId: string; index: number } | null {
-  const entry = state.entries[entryId];
-  if (entry === undefined) return null;
-  const index = state.lanes[entry.ownerId]?.indexOf(entryId) ?? -1;
-  return index === -1 ? null : { ownerId: entry.ownerId, index };
+/** One person's queued entries, in the order they will play. */
+export function queuedBy(state: RoomState, ownerId: string): string[] {
+  return state.queue.filter((entryId) => state.entries[entryId]?.ownerId === ownerId);
 }

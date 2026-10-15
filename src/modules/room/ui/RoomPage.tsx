@@ -12,7 +12,6 @@ import {
 import type { CommandOp } from "@/modules/room/contract/messages.ts";
 import { positionAt } from "@/modules/room/domain/playback.ts";
 import type { RepeatMode } from "@/modules/room/domain/RoomState.ts";
-import { upcoming } from "@/modules/room/domain/upcoming.ts";
 import { BrandMark } from "@/shared/ui/BrandMark.tsx";
 import { Icon } from "@/shared/ui/Icon.tsx";
 import {
@@ -119,18 +118,15 @@ export function RoomPage({ me }: { me: SessionUser }) {
 
   const rows = useMemo<QueueRow[]>(
     () =>
-      upcoming(state).flatMap((entryId) => {
+      state.queue.flatMap((entryId) => {
         const entry = state.entries[entryId];
         if (entry === undefined) return [];
-        const lane = state.lanes[entry.ownerId] ?? [];
         return [
           {
             entryId,
             ownerId: entry.ownerId,
             track: tracks[entry.trackId],
             durationMs: entry.durationMs,
-            laneIndex: lane.indexOf(entryId),
-            laneLength: lane.length,
           },
         ];
       }),

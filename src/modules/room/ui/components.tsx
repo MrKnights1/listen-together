@@ -273,9 +273,6 @@ export interface QueueRow {
   ownerId: string;
   track: TrackInfo | undefined;
   durationMs: number;
-  /** Position within the owner's own list, which is all a move can change. */
-  laneIndex: number;
-  laneLength: number;
 }
 
 export function UpNextList({
@@ -308,7 +305,7 @@ export function UpNextList({
           Shuffle my songs
         </button>
       </div>
-      <p className="upnext__note">Turns rotate between everyone who added songs.</p>
+      <p className="upnext__note">Songs play in the order they were added.</p>
       {rows.length === 0 ? (
         <p className="empty">Nothing queued. Paste a link to add the next song.</p>
       ) : (
@@ -316,7 +313,6 @@ export function UpNextList({
           {rows.map((row, index) => {
             const title = row.track?.title ?? "Unknown song";
             const owner = people[row.ownerId];
-            const whose = row.ownerId === you ? "your" : `${owner?.name ?? "someone"}'s`;
             return (
               <li
                 key={row.entryId}
@@ -352,20 +348,20 @@ export function UpNextList({
                   <button
                     type="button"
                     className="icon-button"
-                    disabled={row.laneIndex === 0}
-                    aria-label={`Move ${title} earlier in ${whose} list`}
+                    disabled={index === 0}
+                    aria-label={`Move ${title} earlier in the queue`}
                     title="Move earlier"
-                    onClick={() => onMove(row.entryId, row.laneIndex - 1)}
+                    onClick={() => onMove(row.entryId, index - 1)}
                   >
                     <Icon name="up" />
                   </button>
                   <button
                     type="button"
                     className="icon-button"
-                    disabled={row.laneIndex === row.laneLength - 1}
-                    aria-label={`Move ${title} later in ${whose} list`}
+                    disabled={index === rows.length - 1}
+                    aria-label={`Move ${title} later in the queue`}
                     title="Move later"
-                    onClick={() => onMove(row.entryId, row.laneIndex + 1)}
+                    onClick={() => onMove(row.entryId, index + 1)}
                   >
                     <Icon name="down" />
                   </button>

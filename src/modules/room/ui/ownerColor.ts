@@ -1,6 +1,6 @@
 /**
- * Each person's colour, so the rotation can be seen at a glance in "Up next":
- * Ada, Bob, Ada, Bob. Six hues, measured at 6.8–8.9:1 against the panels
+ * Each person's colour, so whose song is whose can be seen at a glance in
+ * "Up next". Six hues, measured at 6.8–8.9:1 against the panels
  * (AA asks 4.5:1); with more than six people two may share one, and the name
  * beside it still tells them apart.
  */

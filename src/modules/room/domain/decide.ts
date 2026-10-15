@@ -1,9 +1,9 @@
 import type { RoomCommand, TrackToQueue } from "./commands.ts";
 import type { RoomEvent } from "./events.ts";
-import { MAX_LANE_ENTRIES, MAX_ROOM_ENTRIES } from "./limits.ts";
+import { MAX_ENTRIES_PER_PERSON, MAX_ROOM_ENTRIES } from "./limits.ts";
 import { positionAt } from "./playback.ts";
 import type { Random } from "./ports/Random.ts";
-import { laneOf, type QueueEntry, type RoomState } from "./RoomState.ts";
+import { queuedBy, queueIndex, type QueueEntry, type RoomState } from "./RoomState.ts";
 
 /**
  * `stale`: the command named a song that is no longer where the sender saw
@@ -16,7 +16,7 @@ export interface AddOutcome {
   added: string[];
   /** Track ids already queued by this person, or playing right now. */
   duplicates: string[];
-  /** How many were left out because the person's list or the room was full. */
+  /** How many were left out because the person's share of the queue or the room was full. */
   overflow: number;
 }
 
@@ -43,13 +43,13 @@ function decideAdd(
   tracks: TrackToQueue[],
   now: number,
 ): Decision {
-  const lane = state.lanes[ownerId] ?? [];
-  const taken = new Set(lane.map((id) => state.entries[id]?.trackId));
+  const theirs = queuedBy(state, ownerId);
+  const taken = new Set(theirs.map((id) => state.entries[id]?.trackId));
   const playing = state.current === null ? undefined : state.entries[state.current.entryId];
   if (playing !== undefined) taken.add(playing.trackId);
 
   let room = MAX_ROOM_ENTRIES - Object.keys(state.entries).length;
-  let space = MAX_LANE_ENTRIES - lane.length;
+  let space = MAX_ENTRIES_PER_PERSON - theirs.length;
   const entries: QueueEntry[] = [];
   const duplicates: string[] = [];
   let overflow = 0;
@@ -87,13 +87,26 @@ function decideAdd(
 }
 
 /** Fisher–Yates over a copy: every order equally likely, given a fair `Random`. */
-function shuffled(lane: string[], random: Random): string[] {
-  const copy = [...lane];
+function shuffled(entryIds: string[], random: Random): string[] {
+  const copy = [...entryIds];
   for (let index = copy.length - 1; index > 0; index -= 1) {
     const other = random.int(index + 1);
     [copy[index], copy[other]] = [copy[other] as string, copy[index] as string];
   }
   return copy;
+}
+
+/**
+ * Shuffles everything, or only one person's songs among the places they
+ * already hold — so shuffling your own songs never moves anybody else's.
+ */
+function shuffleQueue(state: RoomState, ownerId: string | null, random: Random): string[] {
+  if (ownerId === null) return shuffled(state.queue, random);
+
+  const mixed = shuffled(queuedBy(state, ownerId), random);
+  return state.queue.map((entryId) =>
+    state.entries[entryId]?.ownerId === ownerId ? (mixed.shift() ?? entryId) : entryId,
+  );
 }
 
 /**
@@ -134,30 +147,24 @@ export function decide(state: RoomState, command: RoomCommand, context: Decision
       if (isCurrent(state, command.entryId)) {
         return accepted([{ type: "advanced", reason: "removed", at: now }]);
       }
-      if (laneOf(state, command.entryId) === null) return rejected("stale");
+      if (queueIndex(state, command.entryId) === -1) return rejected("stale");
       return accepted([{ type: "removed", entryId: command.entryId }]);
 
     case "move": {
       if (isCurrent(state, command.entryId)) return rejected("invalid");
       if (!Number.isInteger(command.toIndex)) return rejected("invalid");
-      const place = laneOf(state, command.entryId);
-      if (place === null) return rejected("stale");
-      const laneLength = state.lanes[place.ownerId]?.length ?? 0;
-      const toIndex = Math.min(Math.max(command.toIndex, 0), laneLength - 1);
-      if (toIndex === place.index) return accepted([]);
+      const fromIndex = queueIndex(state, command.entryId);
+      if (fromIndex === -1) return rejected("stale");
+      const toIndex = Math.min(Math.max(command.toIndex, 0), state.queue.length - 1);
+      if (toIndex === fromIndex) return accepted([]);
       return accepted([{ type: "moved", entryId: command.entryId, toIndex }]);
     }
 
     case "shuffle": {
-      const owners = command.ownerId === null ? Object.keys(state.lanes) : [command.ownerId];
-      const lanes: Record<string, string[]> = {};
-      for (const ownerId of owners) {
-        const lane = state.lanes[ownerId];
-        if (lane !== undefined && lane.length > 1) lanes[ownerId] = shuffled(lane, context.random);
-      }
-      return Object.keys(lanes).length === 0
+      const queue = shuffleQueue(state, command.ownerId, context.random);
+      return queue.every((entryId, index) => entryId === state.queue[index])
         ? accepted([])
-        : accepted([{ type: "shuffled", lanes }]);
+        : accepted([{ type: "shuffled", queue }]);
     }
 
     case "repeat":

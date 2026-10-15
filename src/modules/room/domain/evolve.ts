@@ -1,12 +1,4 @@
 import type { RoomEvent } from "./events.ts";
-import {
-  appendToLane,
-  joinLine,
-  nextOwner,
-  removeFromLane,
-  setLane,
-  takeTurn,
-} from "./rotation.ts";
 import type { RoomState } from "./RoomState.ts";
 
 function withoutEntry(state: RoomState, entryId: string): RoomState {
@@ -16,20 +8,20 @@ function withoutEntry(state: RoomState, entryId: string): RoomState {
 }
 
 /**
- * Moves the room on from its current song: replay it, re-queue it, or drop
- * it; send its owner to the back of the line; then start whoever's turn it is.
- * A paused room stays paused on the next song — somebody paused it, and
- * skipping is not a reason to start playing.
+ * Moves the room on from its current song: replay it, re-queue it at the end,
+ * or drop it; then start the first song in the queue. A paused room stays
+ * paused on the next song — somebody paused it, and skipping is not a reason
+ * to start playing.
  */
 function advance(state: RoomState, reason: RoomEvent & { type: "advanced" }): RoomState {
   const current = state.current;
   let room = state;
 
   if (current !== null) {
-    const entry = state.entries[current.entryId];
-    if (entry === undefined) throw new Error(`The current entry ${current.entryId} is missing.`);
+    if (state.entries[current.entryId] === undefined) {
+      throw new Error(`The current entry ${current.entryId} is missing.`);
+    }
 
-    // Replaying is not a new turn: nobody's place in line moves.
     if (reason.reason === "ended" && state.repeat === "one") {
       return {
         ...state,
@@ -39,34 +31,30 @@ function advance(state: RoomState, reason: RoomEvent & { type: "advanced" }): Ro
 
     room =
       state.repeat === "all" && reason.reason !== "removed"
-        ? appendToLane(room, entry.ownerId, [entry.id])
-        : withoutEntry(room, entry.id);
-    // Their song is over: they rejoin at the back, behind anyone who queued during it.
-    room = joinLine({ ...room, current: null }, entry.ownerId);
+        ? { ...room, queue: [...room.queue, current.entryId] }
+        : withoutEntry(room, current.entryId);
   }
 
   const status = current?.status === "paused" && reason.reason !== "ended" ? "paused" : "playing";
-  const owner = nextOwner(room);
-  if (owner === null) return { ...room, current: null };
+  const [next, ...rest] = room.queue;
+  if (next === undefined) return { ...room, current: null };
 
-  const turn = takeTurn(room, owner);
   return {
-    ...turn.state,
-    current: { entryId: turn.entryId, status, positionMs: 0, anchorAt: reason.at },
+    ...room,
+    queue: rest,
+    current: { entryId: next, status, positionMs: 0, anchorAt: reason.at },
   };
 }
 
 /** Applies one event. Pure: the same state and event always give the same room. */
 export function evolve(state: RoomState, event: RoomEvent): RoomState {
   switch (event.type) {
-    case "queued": {
-      let room: RoomState = {
+    case "queued":
+      return {
         ...state,
         entries: { ...state.entries, ...Object.fromEntries(event.entries.map((e) => [e.id, e])) },
+        queue: [...state.queue, ...event.entries.map((entry) => entry.id)],
       };
-      for (const entry of event.entries) room = appendToLane(room, entry.ownerId, [entry.id]);
-      return room;
-    }
 
     case "advanced":
       return advance(state, event);
@@ -97,26 +85,22 @@ export function evolve(state: RoomState, event: RoomEvent): RoomState {
             current: { ...state.current, positionMs: event.positionMs, anchorAt: event.at },
           };
 
-    case "removed": {
-      const entry = state.entries[event.entryId];
-      if (entry === undefined) return state;
-      return withoutEntry(removeFromLane(state, entry.ownerId, entry.id), entry.id);
-    }
+    case "removed":
+      if (state.entries[event.entryId] === undefined) return state;
+      return withoutEntry(
+        { ...state, queue: state.queue.filter((id) => id !== event.entryId) },
+        event.entryId,
+      );
 
     case "moved": {
-      const entry = state.entries[event.entryId];
-      if (entry === undefined) return state;
-      const lane = (state.lanes[entry.ownerId] ?? []).filter((id) => id !== entry.id);
-      lane.splice(event.toIndex, 0, entry.id);
-      return setLane(state, entry.ownerId, lane);
+      if (!state.queue.includes(event.entryId)) return state;
+      const queue = state.queue.filter((id) => id !== event.entryId);
+      queue.splice(event.toIndex, 0, event.entryId);
+      return { ...state, queue };
     }
 
-    case "shuffled": {
-      let room = state;
-      for (const [ownerId, lane] of Object.entries(event.lanes))
-        room = setLane(room, ownerId, lane);
-      return room;
-    }
+    case "shuffled":
+      return { ...state, queue: event.queue };
 
     case "repeat_set":
       return { ...state, repeat: event.mode };

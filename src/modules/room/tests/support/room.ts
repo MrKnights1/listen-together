@@ -80,11 +80,11 @@ export function finishSong(state: RoomState, now: number): { state: RoomState; n
   };
 }
 
-/** The first three entries in a person's list, failing the test if there are fewer. */
-export function firstThree(state: RoomState, ownerId: string): [string, string, string] {
-  const [a, b, c] = state.lanes[ownerId] ?? [];
+/** The first three queued entries, failing the test if there are fewer. */
+export function firstThree(state: RoomState): [string, string, string] {
+  const [a, b, c] = state.queue;
   if (a === undefined || b === undefined || c === undefined) {
-    throw new Error(`${ownerId} has fewer than three songs queued.`);
+    throw new Error("Fewer than three songs are queued.");
   }
   return [a, b, c];
 }
