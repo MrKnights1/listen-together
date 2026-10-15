@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { AddFromLink } from "@/modules/room/application/AddFromLink.ts";
 import { ControlRoom, type PersonCommand } from "@/modules/room/application/ControlRoom.ts";
+import { DescribePeople } from "@/modules/room/application/DescribePeople.ts";
 import { GetRoomView } from "@/modules/room/application/GetRoomView.ts";
 import { MaintainQueue } from "@/modules/room/application/MaintainQueue.ts";
 import { PauseEmptyRoom } from "@/modules/room/application/PauseEmptyRoom.ts";
@@ -18,6 +19,7 @@ import { emptyRoom, type RoomState } from "@/modules/room/domain/RoomState.ts";
 import {
   FakeClock,
   InMemoryActivityRepository,
+  InMemoryPeopleDirectory,
   InMemoryRoomRepository,
   ManualTimers,
   SequenceIds,
@@ -280,15 +282,29 @@ describe("MaintainQueue", () => {
 });
 
 describe("GetRoomView", () => {
-  test("gives a newcomer the room, its songs, and the recent feed", async () => {
+  test("gives a newcomer the room, its songs, the recent feed and the people in it", async () => {
     source.link("x", [trackInfo("one")]);
     await addFromLink().execute("ada", "x");
+    const people = new InMemoryPeopleDirectory({ ada: "Ada", bob: "Bob", cy: "Cy" });
 
-    const view = await new GetRoomView(engine, activity).execute();
+    const view = await new GetRoomView(engine, activity, new DescribePeople(people)).execute([
+      "bob",
+    ]);
 
     expect(view.state.current?.entryId).toBe("entry-1");
     expect(view.tracks.map((track) => track.title)).toEqual(["Song one"]);
     expect(view.activity.map((entry) => entry.kind)).toEqual(["added"]);
+    expect(view.people.map((person) => person.name).sort()).toEqual(["Ada", "Bob"]);
+  });
+
+  test("asks about each person once, however often they appear", async () => {
+    source.link("x", [trackInfo("one"), trackInfo("two")]);
+    await addFromLink().execute("ada", "x");
+    const people = new InMemoryPeopleDirectory({ ada: "Ada" });
+
+    await new GetRoomView(engine, activity, new DescribePeople(people)).execute(["ada"]);
+
+    expect(people.asked).toEqual([["ada"]]);
   });
 });
 

@@ -179,3 +179,20 @@ export class SequenceIds implements IdGenerator {
     return `entry-${this.issued}`;
   }
 }
+
+/** People by id, recording what the room asked about. */
+export class InMemoryPeopleDirectory {
+  readonly asked: string[][] = [];
+
+  constructor(private readonly people: Record<string, string> = {}) {}
+
+  async find(ids: string[]) {
+    this.asked.push([...ids]);
+    return ids.flatMap((id) => {
+      const name = this.people[id];
+      return name === undefined
+        ? []
+        : [{ id, name, avatarUrl: `https://cdn.discordapp.com/embed/avatars/0.png` }];
+    });
+  }
+}

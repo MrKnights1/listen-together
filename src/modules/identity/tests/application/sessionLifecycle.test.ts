@@ -47,6 +47,45 @@ describe("LogOut", () => {
     expect(await sessions.findByTokenHash("hash(token-1)")).toBeNull();
   });
 
+  test("tells whoever asked that the session ended, with its token", async () => {
+    await sessions.save(Session.open("hash(token-1)", "user-1", NOW));
+    const logOut = new LogOut(sessions, new SequenceTokenGenerator());
+    const ended: string[] = [];
+    logOut.onSessionEnded((token) => ended.push(token));
+
+    await logOut.execute("token-1");
+
+    expect(ended).toEqual(["token-1"]);
+  });
+
+  test("still signs out when a listener fails", async () => {
+    await sessions.save(Session.open("hash(token-1)", "user-1", NOW));
+    const logOut = new LogOut(sessions, new SequenceTokenGenerator());
+    logOut.onSessionEnded(() => {
+      throw new Error("listener broke");
+    });
+    const original = console.error;
+    console.error = () => undefined;
+
+    try {
+      await logOut.execute("token-1");
+    } finally {
+      console.error = original;
+    }
+
+    expect(await sessions.findByTokenHash("hash(token-1)")).toBeNull();
+  });
+
+  test("tells nobody when there was nothing to end", async () => {
+    const logOut = new LogOut(sessions, new SequenceTokenGenerator());
+    const ended: string[] = [];
+    logOut.onSessionEnded((token) => ended.push(token));
+
+    await logOut.execute(null);
+
+    expect(ended).toEqual([]);
+  });
+
   test("does nothing, without complaint, when there is no token", async () => {
     await new LogOut(sessions, new SequenceTokenGenerator()).execute(null);
 

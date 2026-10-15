@@ -108,6 +108,41 @@ describe("domain layer", () => {
   });
 });
 
+/**
+ * A module's wire protocol, shared by its server and its browser code. It sits
+ * between the two, so it may lean only on the module's own rules and the
+ * shared kernel — anything more and one side ships the other's dependencies.
+ */
+describe("contract layer", () => {
+  test("has files to check", () => {
+    expect(filesUnder(/^modules\/room\/contract\//).length).toBeGreaterThan(0);
+  });
+
+  test("imports only its own module's domain and the shared domain", () => {
+    const found = filesUnder(/^modules\/[^/]+\/contract\//).flatMap((file) => {
+      const owner = /^modules\/([^/]+)\//.exec(file.path)?.[1] ?? "";
+      return file.imports
+        .filter(
+          (specifier) =>
+            !specifier.startsWith(".") &&
+            !specifier.startsWith(`@/modules/${owner}/domain/`) &&
+            !specifier.startsWith("@/shared/domain/"),
+        )
+        .map((specifier) => `${file.path} imports ${specifier}`);
+    });
+
+    expect(found).toEqual([]);
+  });
+
+  test("is never imported by the domain it is built on", () => {
+    const found = violations(/^modules\/[^/]+\/domain\//, (specifier) =>
+      /@\/modules\/[^/]+\/contract/.test(specifier),
+    );
+
+    expect(found).toEqual([]);
+  });
+});
+
 describe("application layer", () => {
   test("has files to check", () => {
     expect(filesUnder(/^modules\/identity\/application\//).length).toBeGreaterThan(0);

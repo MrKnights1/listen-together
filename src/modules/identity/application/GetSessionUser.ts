@@ -11,7 +11,14 @@ import type { UserRepository } from "@/modules/identity/domain/ports/UserReposit
  * first.
  */
 export type SessionLookup =
-  { status: "signed_in"; user: User } | { status: "signed_out" } | { status: "not_allowed" };
+  | {
+      status: "signed_in";
+      user: User;
+      /** When this session stops being valid — so a long-lived socket knows when to let go. */
+      expiresAt: Date;
+    }
+  | { status: "signed_out" }
+  | { status: "not_allowed" };
 
 /**
  * The single place a request is decided to be authenticated.
@@ -48,6 +55,6 @@ export class GetSessionUser {
       return { status: "not_allowed" };
     }
 
-    return { status: "signed_in", user };
+    return { status: "signed_in", user, expiresAt: session.expiresAt };
   }
 }

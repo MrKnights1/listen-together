@@ -45,6 +45,14 @@ describe("GetSessionUser", () => {
     expect(result.status === "signed_in" ? result.user.id : null).toBe("user-1");
   });
 
+  test("says when the session expires, so a long-lived socket knows when to let go", async () => {
+    const result = await lookup([ADA_DISCORD_ID]).execute("token-1");
+
+    expect(result.status === "signed_in" ? result.expiresAt.getTime() : null).toBe(
+      NOW.getTime() + SESSION_LIFETIME_MS,
+    );
+  });
+
   test("says signed out with no token, a blank one, or an unknown one", async () => {
     const getSessionUser = lookup([ADA_DISCORD_ID]);
 

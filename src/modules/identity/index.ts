@@ -9,7 +9,7 @@ export { toUserView, type UserView } from "./http/views.ts";
 export { StartDiscordLogin } from "./application/StartDiscordLogin.ts";
 export { CompleteDiscordLogin } from "./application/CompleteDiscordLogin.ts";
 export { GetSessionUser, type SessionLookup } from "./application/GetSessionUser.ts";
-export { LogOut } from "./application/LogOut.ts";
+export { LogOut, type SessionEndedListener } from "./application/LogOut.ts";
 export { FindUsers } from "./application/FindUsers.ts";
 export { PurgeExpiredSessions } from "./application/PurgeExpiredSessions.ts";
 export { AllowedDiscordUsers } from "./domain/AllowedDiscordUsers.ts";

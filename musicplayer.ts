@@ -18,6 +18,7 @@ import {
   createIdentityRoutes,
   DISCORD_ENDPOINTS,
   DiscordOAuthClient,
+  FindUsers,
   GetSessionUser,
   LogOut,
   PurgeExpiredSessions,
@@ -38,12 +39,19 @@ import {
 } from "@/modules/catalog/index.ts";
 
 import {
+  AddFromLink,
   CatalogTrackSource,
+  ControlRoom,
+  createRoomSocketRoute,
+  DescribePeople,
+  GetRoomView,
+  IdentityPeopleDirectory,
   MaintainQueue,
   MathRandom,
   PauseEmptyRoom,
   RestoreRoom,
   RoomEngine,
+  RoomSockets,
   SqliteActivityRepository,
   SqliteRoomRepository,
 } from "@/modules/room/index.ts";
@@ -75,6 +83,7 @@ const discord = new DiscordOAuthClient({
   endpoints: DISCORD_ENDPOINTS,
 });
 const getSessionUser = new GetSessionUser(sessions, users, allowed, tokens, clock);
+const logOut = new LogOut(sessions, tokens);
 
 const identityRoutes = createIdentityRoutes({
   startDiscordLogin: new StartDiscordLogin(discord, tokens, clock),
@@ -88,7 +97,7 @@ const identityRoutes = createIdentityRoutes({
     clock,
   ),
   getSessionUser,
-  logOut: new LogOut(sessions, tokens),
+  logOut,
   secureCookies,
 });
 
@@ -138,6 +147,21 @@ const roomMaintenance = new RecurringJob(
 );
 await roomMaintenance.start();
 
+const describePeople = new DescribePeople(new IdentityPeopleDirectory(new FindUsers(users)));
+const roomSockets = new RoomSockets({
+  getSessionUser,
+  engine: roomEngine,
+  addFromLink: new AddFromLink(trackSource, roomEngine, ids),
+  controlRoom: new ControlRoom(roomEngine),
+  getRoomView: new GetRoomView(roomEngine, activity, describePeople),
+  describePeople,
+  pauseEmptyRoom,
+  clock,
+  timers,
+});
+// Signing out closes that session's open sockets at once.
+logOut.onSessionEnded((sessionToken) => roomSockets.closeForSession(sessionToken));
+
 // Production serves the pages from nginx; only development bundles them in-process.
 const pageRoutes = env.development ? (await import("./pages.ts")).pages : {};
 
@@ -145,9 +169,14 @@ const server = Bun.serve({
   hostname: env.host,
   port: env.port,
   development: env.development,
+  // Must sit beside `routes`: it is what lets the socket route upgrade.
+  websocket: roomSockets.handler,
   routes: {
     ...pageRoutes,
     ...identityRoutes,
+    "/api/room/socket": {
+      GET: createRoomSocketRoute({ getSessionUser, allowedOrigin: env.appUrl }),
+    },
     // The deploy script's smoke check. Says nothing about the process beyond "up".
     "/api/health": { GET: () => Response.json({ status: "ok" }) },
   },
@@ -159,7 +188,8 @@ console.log(`musicplayer listening on http://${server.hostname}:${server.port}`)
 let shuttingDown = false;
 
 /**
- * Stop taking requests first, then stop housekeeping, then save the room as
+ * Close the room's sockets ("going away": browsers reconnect to the next
+ * process), stop taking requests, stop housekeeping, then save the room as
  * cleanly shut down, then close the database. The room is suspended behind
  * any command already running, so that command is saved too; closed the other
  * way round, it would write to a closed handle.
@@ -169,6 +199,7 @@ async function shutdown(signal: string): Promise<void> {
   shuttingDown = true;
   console.log(`${signal} received, shutting down`);
 
+  roomSockets.closeAll(1001, "The server is restarting.");
   await server.stop();
   sessionPurge.stop();
   roomMaintenance.stop();

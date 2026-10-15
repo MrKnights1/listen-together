@@ -10,7 +10,7 @@ import { readSessionToken } from "./sessionCookie.ts";
 export async function requireSession(
   request: Request,
   getSessionUser: GetSessionUser,
-): Promise<{ user: User; sessionToken: string } | { response: Response }> {
+): Promise<{ user: User; sessionToken: string; expiresAt: Date } | { response: Response }> {
   const sessionToken = readSessionToken(request);
   const lookup = await getSessionUser.execute(sessionToken);
 
@@ -18,9 +18,10 @@ export async function requireSession(
     return { response: forbidden("Your Discord account is no longer on this room's guest list.") };
   }
 
-  // The token is returned for the caller that outlives its request — the room
-  // socket, which has to ask again later whether the session is still alive.
+  // The token and expiry are returned for the caller that outlives its request
+  // — the room socket, which has to ask again later whether the session is
+  // still alive, and let go the moment it expires.
   return lookup.status === "signed_out" || sessionToken === null
     ? { response: unauthorized() }
-    : { user: lookup.user, sessionToken };
+    : { user: lookup.user, sessionToken, expiresAt: lookup.expiresAt };
 }
