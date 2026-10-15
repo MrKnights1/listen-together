@@ -46,6 +46,13 @@ describe("AdminPage", () => {
     expect(html).toContain('href="/"');
     expect(html).toContain("Loading the guest list");
   });
+
+  test("carries the room's mark and name in the header", () => {
+    const html = renderToStaticMarkup(<AdminPage me={ME} />);
+
+    expect(html).toContain('class="admin__mark"');
+    expect(html).toContain("Listening room");
+  });
 });
 
 describe("RequestList", () => {

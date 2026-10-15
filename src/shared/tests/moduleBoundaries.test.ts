@@ -365,6 +365,17 @@ describe("shared", () => {
     expect(found).toEqual([]);
   });
 
+  /** Drawn in every page's bundle, so nothing but React: no server code, no module's rules. */
+  test("shared/ui imports nothing but React and other shared/ui files", () => {
+    const found = violations(
+      /^shared\/ui\//,
+      (specifier) => specifier !== "react" && !specifier.startsWith("@/shared/ui/"),
+    );
+
+    expect(filesUnder(/^shared\/ui\//).length).toBeGreaterThan(0);
+    expect(found).toEqual([]);
+  });
+
   /**
    * The import graph cannot see this one: a `.sql` file has no imports, so
    * schema could hide under `src/` with every other rule passing.

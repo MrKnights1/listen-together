@@ -1,4 +1,5 @@
 import type { RefObject } from "react";
+import { BrandMark } from "@/shared/ui/BrandMark.tsx";
 import { PLAYER_SIZE_PX } from "./youtube/YouTubeIframeAdapter.ts";
 
 /**
@@ -20,7 +21,7 @@ export function PlayerTile({
       <div ref={hostRef} className="player-tile__host" hidden={idle} />
       {idle && (
         <div className="player-tile__placeholder" role="img" aria-label="Nothing playing">
-          ♪
+          <BrandMark className="player-tile__mark" />
         </div>
       )}
     </div>

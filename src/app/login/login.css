@@ -1,31 +1,64 @@
+/* One card in the middle of the page, lit by a soft amber glow above it. */
 .login {
   display: grid;
-  gap: 1rem;
-  max-width: 30rem;
-  margin: 0 auto;
-  /* Padding, not margin: a top margin collapses through body and adds a scrollbar. */
-  padding: 18vh 1.5rem 0;
+  place-items: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 24px 16px;
+}
+
+.login__card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: grid;
+  gap: 18px;
+  width: min(100%, 28rem);
+  padding: 40px 28px;
+  border-radius: var(--r-pane);
+  background: var(--pane);
+}
+
+.login__card::before {
+  content: "";
+  position: absolute;
+  inset: -30% -30% 40% -30%;
+  z-index: -1;
+  background: radial-gradient(closest-side, rgb(245 165 36 / 0.22), transparent);
+}
+
+.login__mark {
+  width: 44px;
+  height: 44px;
 }
 
 .login__title {
-  font-size: var(--step-3);
-  line-height: 1.1;
+  font-family: var(--display);
+  font-size: 2.25rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.03em;
 }
 
 .login__lede {
-  color: var(--muted);
+  color: var(--text-2);
 }
 
 .discord-button {
-  justify-self: start;
-  padding: 0.75rem 1.25rem;
-  border-radius: var(--radius);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 22px;
+  border-radius: 999px;
   background: var(--discord);
   color: #fff;
   font-weight: 700;
   text-decoration: none;
+  transition: background-color 0.15s;
 }
 
 .discord-button:hover {
   background: #4752c4;
+  color: #fff;
 }

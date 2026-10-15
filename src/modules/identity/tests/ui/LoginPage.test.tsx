@@ -10,6 +10,14 @@ describe("LoginPage", () => {
     expect(markup()).toContain('href="/api/auth/discord/start"');
   });
 
+  test("names the room beside its mark", () => {
+    const html = markup();
+
+    expect(html).toContain('class="login__mark"');
+    expect(html).toContain("<h1");
+    expect(html).toContain("Listening room");
+  });
+
   test("says nothing about failure when there was none", () => {
     expect(markup()).not.toContain('role="alert"');
   });

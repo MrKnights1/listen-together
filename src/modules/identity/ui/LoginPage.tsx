@@ -1,3 +1,6 @@
+import { BrandMark } from "@/shared/ui/BrandMark.tsx";
+import { Icon } from "@/shared/ui/Icon.tsx";
+
 /** Anything unrecognised falls back to the generic line, never a raw code. */
 const MESSAGES: Record<string, string> = {
   declined: "Sign-in was cancelled on Discord. Try again when you're ready.",
@@ -20,21 +23,25 @@ export function LoginPage({ error }: { error: string | null }) {
 
   return (
     <main className="login">
-      <h1 className="login__title">Listening room</h1>
-      <p className="login__lede">
-        One queue, one song, everyone hearing it at the same moment. Sign in with the Discord
-        account the room knows you by.
-      </p>
-
-      {message !== null && (
-        <p className="notice" role="alert">
-          {message}
+      <div className="login__card">
+        <BrandMark className="login__mark" />
+        <h1 className="login__title">Listening room</h1>
+        <p className="login__lede">
+          One queue, one song, everyone hearing it at the same moment. Sign in with the Discord
+          account the room knows you by.
         </p>
-      )}
 
-      <a className="discord-button" href="/api/auth/discord/start">
-        Sign in with Discord
-      </a>
+        {message !== null && (
+          <p className="notice" role="alert">
+            <Icon name="alert" />
+            {message}
+          </p>
+        )}
+
+        <a className="discord-button" href="/api/auth/discord/start">
+          Sign in with Discord
+        </a>
+      </div>
     </main>
   );
 }
