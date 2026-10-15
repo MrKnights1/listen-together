@@ -38,11 +38,8 @@ export class FakeAdapter implements PlayerAdapter {
     this.current.positionMs = positionMs;
   }
 
-  setVolume(volume: number): void {
+  setAudio(volume: number, muted: boolean): void {
     this.volume = volume;
-  }
-
-  setMuted(muted: boolean): void {
     this.muted = muted;
   }
 

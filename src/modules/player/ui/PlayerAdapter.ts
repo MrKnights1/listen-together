@@ -12,9 +12,11 @@ export interface PlayerAdapter {
   play(): void;
   pause(): void;
   seekTo(positionMs: number): void;
-  /** 0–100. This listener's own volume; never shared. */
-  setVolume(volume: number): void;
-  setMuted(muted: boolean): void;
+  /**
+   * This listener's own sound, never shared: silent when muted or at 0, else
+   * `volume` (0–100). One call, because the order matters to the provider.
+   */
+  setAudio(volume: number, muted: boolean): void;
   positionMs(): number;
   state(): PlayerState;
   destroy(): void;

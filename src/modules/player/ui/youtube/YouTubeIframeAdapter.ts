@@ -69,13 +69,18 @@ export class YouTubeIframeAdapter implements PlayerAdapter {
     this.player.seekTo(Math.max(0, positionMs) / 1000, true);
   }
 
-  setVolume(volume: number): void {
-    this.player.setVolume(Math.round(Math.min(Math.max(volume, 0), 100)));
-  }
-
-  setMuted(muted: boolean): void {
-    if (muted) this.player.mute();
-    else this.player.unMute();
+  /**
+   * YouTube's `unMute()` lifts a volume of 0 back to 5, so silence is its own
+   * mute, unmuting happens only when the player is muted, and the volume is set
+   * after it — whatever `unMute()` restored is overwritten.
+   */
+  setAudio(volume: number, muted: boolean): void {
+    if (muted || volume <= 0) {
+      if (!this.player.isMuted()) this.player.mute();
+      return;
+    }
+    if (this.player.isMuted()) this.player.unMute();
+    this.player.setVolume(Math.round(Math.min(volume, 100)));
   }
 
   positionMs(): number {

@@ -53,8 +53,7 @@ export class SyncedPlayer {
   setAudio(volume: number, muted: boolean): void {
     this.volume = volume;
     this.muted = muted;
-    this.adapter?.setVolume(volume);
-    this.adapter?.setMuted(muted);
+    this.adapter?.setAudio(volume, muted);
   }
 
   /** Forget the correction history and line up again from scratch. */
@@ -128,8 +127,7 @@ export class SyncedPlayer {
         this.adapter = adapter;
         this.provider = provider;
         this.loadedTrackId = null;
-        adapter.setVolume(this.volume);
-        adapter.setMuted(this.muted);
+        adapter.setAudio(this.volume, this.muted);
       })
       .catch((error: unknown) => {
         console.error("Creating the player failed", error);

@@ -19,6 +19,8 @@ class FakeYTPlayer implements YTPlayer {
   readonly calls: unknown[] = [];
   time = 0;
   stateCode = -1;
+  volume = 100;
+  muted = false;
 
   constructor(
     readonly mount: HTMLElement,
@@ -43,13 +45,22 @@ class FakeYTPlayer implements YTPlayer {
     this.calls.push(["seekTo", seconds, ahead]);
   }
   setVolume(volume: number) {
-    this.calls.push(["setVolume", volume]);
+    this.volume = volume;
   }
   mute() {
-    this.calls.push(["mute"]);
+    this.muted = true;
   }
+  /** Measured on the real player: unmuting at volume 0 raises it to 5. */
   unMute() {
-    this.calls.push(["unMute"]);
+    this.muted = false;
+    if (this.volume === 0) this.volume = 5;
+  }
+  isMuted() {
+    return this.muted;
+  }
+  /** What the listener actually hears. */
+  get audible() {
+    return this.muted ? 0 : this.volume;
   }
   getCurrentTime() {
     return this.time;
@@ -133,15 +144,53 @@ describe("YouTubeIframeAdapter", () => {
     expect(player.state()).toBe(state);
   });
 
-  test("keeps volume a whole number from 0 to 100, and mutes separately", async () => {
+  test("keeps volume a whole number from 0 to 100", async () => {
     const { adapter: player, yt } = await adapter();
 
-    player.setVolume(150);
-    player.setVolume(33.6);
-    player.setMuted(true);
-    player.setMuted(false);
+    player.setAudio(150, false);
+    expect(yt.audible).toBe(100);
+    player.setAudio(33.6, false);
+    expect(yt.audible).toBe(34);
+  });
 
-    expect(yt.calls).toEqual([["setVolume", 100], ["setVolume", 34], ["mute"], ["unMute"]]);
+  /** The bug: YouTube's unMute() lifts a volume of 0 back to 5. */
+  test("dragging the slider to 0 is silent", async () => {
+    const { adapter: player, yt } = await adapter();
+
+    player.setAudio(60, false);
+    player.setAudio(0, false);
+
+    expect(yt.audible).toBe(0);
+  });
+
+  test("coming back up from 0 plays at the chosen volume, never a stray 5", async () => {
+    const { adapter: player, yt } = await adapter();
+
+    player.setAudio(0, false);
+    player.setAudio(30, false);
+
+    expect(yt.muted).toBe(false);
+    expect(yt.volume).toBe(30);
+  });
+
+  test("the mute button silences, and unmuting brings the volume back", async () => {
+    const { adapter: player, yt } = await adapter();
+
+    player.setAudio(50, true);
+    expect(yt.audible).toBe(0);
+
+    player.setAudio(50, false);
+    expect(yt.audible).toBe(50);
+  });
+
+  test("unmuting while the slider is at 0 stays silent", async () => {
+    const { adapter: player, yt } = await adapter();
+
+    player.setAudio(50, true);
+    player.setAudio(0, true);
+    player.setAudio(0, false);
+
+    expect(yt.audible).toBe(0);
   });
 
   test("passes YouTube's events on in its own words", async () => {
