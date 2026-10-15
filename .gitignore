@@ -1,0 +1,11 @@
+node_modules/
+.env
+data/
+dist/
+*.db
+*.db-shm
+*.db-wal
+.playwright-mcp/
+test-results/
+playwright-report/
+e2e/.auth/
