@@ -13,11 +13,7 @@
 import { mkdir, readdir, rm } from "node:fs/promises";
 import path from "node:path";
 
-const ENTRYPOINTS = [
-  "src/app/room/room.html",
-  "src/app/login/login.html",
-  "src/app/admin/admin.html",
-];
+const ENTRYPOINTS = ["src/app/room/room.html", "src/app/login/login.html"];
 /** Already compressed, or too small to gain: woff2 and images are left alone. */
 const COMPRESSIBLE = /\.(html|js|css|svg)$/;
 
