@@ -23,7 +23,7 @@ const people = {
 const noop = () => undefined;
 
 function row(entryId: string, ownerId: string): QueueRow {
-  return { entryId, ownerId, track: trackInfo(entryId), durationMs: 185_000 };
+  return { entryId, ownerId, track: trackInfo(entryId), durationMs: 185_000, addedAt: 0 };
 }
 
 describe("NowPlaying", () => {
@@ -235,6 +235,7 @@ describe("UpNextList", () => {
         onMove={noop}
         onRemove={noop}
         onShuffleMine={noop}
+        onClear={noop}
       />,
     );
 
@@ -253,6 +254,7 @@ describe("UpNextList", () => {
         onMove={noop}
         onRemove={noop}
         onShuffleMine={noop}
+        onClear={noop}
       />,
     );
 
@@ -271,6 +273,7 @@ describe("UpNextList", () => {
         onMove={noop}
         onRemove={noop}
         onShuffleMine={noop}
+        onClear={noop}
       />,
     );
 
@@ -288,6 +291,7 @@ describe("UpNextList", () => {
         onMove={noop}
         onRemove={noop}
         onShuffleMine={noop}
+        onClear={noop}
       />,
     );
     const disabled = (label: string) =>
@@ -310,6 +314,7 @@ describe("UpNextList", () => {
         onMove={noop}
         onRemove={noop}
         onShuffleMine={noop}
+        onClear={noop}
       />,
     );
 
@@ -328,6 +333,7 @@ describe("UpNextList", () => {
         onMove={noop}
         onRemove={noop}
         onShuffleMine={noop}
+        onClear={noop}
       />,
     );
 
@@ -348,9 +354,45 @@ describe("UpNextList", () => {
           onMove={noop}
           onRemove={noop}
           onShuffleMine={noop}
+          onClear={noop}
         />,
       ),
     ).toContain("Nothing queued");
+  });
+
+  describe("Clear queue", () => {
+    const clearButton = (rows: QueueRow[]) => {
+      const html = renderToStaticMarkup(
+        <UpNextList
+          rows={rows}
+          shuffle={false}
+          people={people}
+          you="ada"
+          onMove={noop}
+          onRemove={noop}
+          onShuffleMine={noop}
+          onClear={noop}
+        />,
+      );
+      const button = /<button[^>]*>(?:(?!<\/button>).)*Clear queue<\/button>/.exec(html)?.[0];
+      if (button === undefined) throw new Error("There is no Clear queue button.");
+      return { html, button };
+    };
+
+    test("is offered beside the queue, in the colour that warns", () => {
+      const { button } = clearButton([row("a1", "ada"), row("b1", "bob")]);
+
+      expect(button).toContain("button--danger");
+      expect(button).not.toContain("disabled");
+    });
+
+    test("cannot be pressed while nothing is queued", () => {
+      expect(clearButton([]).button).toContain('disabled=""');
+    });
+
+    test("asks nothing until it is pressed", () => {
+      expect(clearButton([row("a1", "ada")]).html).not.toContain("<dialog");
+    });
   });
 });
 

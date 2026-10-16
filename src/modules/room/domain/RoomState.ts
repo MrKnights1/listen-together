@@ -53,3 +53,10 @@ export function queueIndex(state: RoomState, entryId: string): number {
 export function queuedBy(state: RoomState, ownerId: string): string[] {
   return state.queue.filter((entryId) => state.entries[entryId]?.ownerId === ownerId);
 }
+
+/** The queued entries added at or before `addedUpTo`, in the order they will play. */
+export function queuedUpTo(state: RoomState, addedUpTo: number): string[] {
+  return state.queue.filter(
+    (entryId) => (state.entries[entryId]?.addedAt ?? Infinity) <= addedUpTo,
+  );
+}

@@ -1,6 +1,6 @@
 import type { RoomCommand } from "./commands.ts";
 import type { AddOutcome } from "./decide.ts";
-import type { RepeatMode, RoomState } from "./RoomState.ts";
+import { queuedUpTo, type RepeatMode, type RoomState } from "./RoomState.ts";
 
 export type ActivityKind =
   | "added"
@@ -12,6 +12,7 @@ export type ActivityKind =
   | "resumed"
   | "seeked"
   | "moved"
+  | "cleared"
   | "shuffled"
   | "repeat_set"
   | "shuffle_set";
@@ -90,6 +91,8 @@ export function describeActivity(
       return line("seeked", { positionMs: Math.round(command.positionMs) });
     case "move":
       return line("moved", about(command.entryId));
+    case "clear":
+      return line("cleared", { count: queuedUpTo(before, command.addedUpTo).length });
     case "shuffle":
       return line("shuffled", { ownerId: command.ownerId });
     case "repeat":

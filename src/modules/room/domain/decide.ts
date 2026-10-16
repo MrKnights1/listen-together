@@ -3,7 +3,7 @@ import type { AdvanceReason, RoomEvent } from "./events.ts";
 import { MAX_ROOM_ENTRIES } from "./limits.ts";
 import { positionAt } from "./playback.ts";
 import type { Random } from "./ports/Random.ts";
-import { queuedBy, queueIndex, type QueueEntry, type RoomState } from "./RoomState.ts";
+import { queuedBy, queuedUpTo, queueIndex, type QueueEntry, type RoomState } from "./RoomState.ts";
 
 /**
  * `stale`: the command named a song that is no longer where the sender saw
@@ -192,6 +192,12 @@ export function decide(state: RoomState, command: RoomCommand, context: Decision
       const toIndex = Math.min(Math.max(command.toIndex, 0), state.queue.length - 1);
       if (toIndex === fromIndex) return accepted([]);
       return accepted([{ type: "moved", entryId: command.entryId, toIndex }]);
+    }
+
+    case "clear": {
+      if (!Number.isFinite(command.addedUpTo)) return rejected("invalid");
+      const entryIds = queuedUpTo(state, command.addedUpTo);
+      return entryIds.length === 0 ? accepted([]) : accepted([{ type: "cleared", entryIds }]);
     }
 
     case "shuffle": {

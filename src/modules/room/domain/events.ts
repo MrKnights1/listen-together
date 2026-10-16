@@ -24,6 +24,8 @@ export type RoomEvent =
   | { type: "seeked"; positionMs: number; at: number }
   | { type: "removed"; entryId: string }
   | { type: "moved"; entryId: string; toIndex: number }
+  /** Queued entries taken out all at once. Never the one playing. */
+  | { type: "cleared"; entryIds: string[] }
   /** The whole queue in its new order. */
   | { type: "shuffled"; queue: string[] }
   | { type: "repeat_set"; mode: RepeatMode }

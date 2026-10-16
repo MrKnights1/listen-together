@@ -100,6 +100,14 @@ export function evolve(state: RoomState, event: RoomEvent): RoomState {
       return { ...state, queue };
     }
 
+    case "cleared": {
+      const queued = new Set(state.queue);
+      const gone = new Set(event.entryIds.filter((entryId) => queued.has(entryId)));
+      const entries = { ...state.entries };
+      for (const entryId of gone) delete entries[entryId];
+      return { ...state, entries, queue: state.queue.filter((entryId) => !gone.has(entryId)) };
+    }
+
     case "shuffled":
       return { ...state, queue: event.queue };
 

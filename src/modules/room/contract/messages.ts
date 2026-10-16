@@ -43,6 +43,7 @@ export type CommandOp =
   | { type: "pause" | "resume" | "skip" | "remove"; entryId: string }
   | { type: "seek"; entryId: string; positionMs: number }
   | { type: "move"; entryId: string; toIndex: number }
+  | { type: "clear"; addedUpTo: number }
   | { type: "shuffle"; ownerId: string }
   | { type: "repeat"; mode: RepeatMode }
   | { type: "set_shuffle"; on: boolean };

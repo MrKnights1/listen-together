@@ -83,6 +83,12 @@ function randomCommand(
     };
   }
   if (roll < 95) return { command: { type: "auto_pause" }, now };
+  if (roll < 97) {
+    // Everything, or only what was added up to some song: as if more arrived while deciding.
+    const queued = state.queue.flatMap((entryId) => state.entries[entryId] ?? []);
+    const addedUpTo = queued.length > 0 && random.int(2) === 0 ? pick(random, queued).addedAt : now;
+    return { command: { type: "clear", addedUpTo }, now };
+  }
   // A command aimed at something that never existed.
   return { command: { type: "skip", entryId: `stale-${now}` }, now };
 }
@@ -154,6 +160,17 @@ describe("room invariants under random commands", () => {
 
         const expectedVersion = before.version + (decision.events.length > 0 ? 1 : 0);
         if (state.version !== expectedVersion) failures.push(`${where}: version ${state.version}`);
+
+        if (generated.command.type === "clear") {
+          const { addedUpTo } = generated.command;
+          if (JSON.stringify(state.current) !== JSON.stringify(before.current)) {
+            failures.push(`${where}: clearing changed the song playing`);
+          }
+          const left = state.queue.filter(
+            (entryId) => (state.entries[entryId]?.addedAt ?? Infinity) <= addedUpTo,
+          );
+          if (left.length > 0) failures.push(`${where}: clearing left ${left.length} songs`);
+        }
 
         const reorders = generated.command.type === "move" || generated.command.type === "shuffle";
         if (!reorders) {

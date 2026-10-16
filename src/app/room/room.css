@@ -614,6 +614,13 @@
   padding: 8px 8px 0;
 }
 
+.upnext__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .upnext__note {
   padding: 2px 8px 12px;
   color: var(--muted);

@@ -35,6 +35,7 @@ describe("decodeClientMessage — accepted", () => {
     [{ t: "cmd", id: "c10", op: { type: "repeat", mode: "all" } }],
     [{ t: "cmd", id: "c12", op: { type: "set_shuffle", on: true } }],
     [{ t: "cmd", id: "c13", op: { type: "set_shuffle", on: false } }],
+    [{ t: "cmd", id: "c14", op: { type: "clear", addedUpTo: 1_760_000_000_000 } }],
   ])("%o", (message) => {
     expect(decode(message)).toEqual(message as never);
   });
@@ -105,6 +106,27 @@ describe("decodeClientMessage — refused", () => {
     [
       "a shuffle switch with an extra field",
       JSON.stringify({ t: "cmd", id: "c", op: { type: "set_shuffle", on: true, seed: 4 } }),
+    ],
+    ["a clear without its bound", JSON.stringify({ t: "cmd", id: "c", op: { type: "clear" } })],
+    [
+      "a clear bounded by a negative time",
+      JSON.stringify({ t: "cmd", id: "c", op: { type: "clear", addedUpTo: -1 } }),
+    ],
+    [
+      "a clear bounded by a fraction",
+      JSON.stringify({ t: "cmd", id: "c", op: { type: "clear", addedUpTo: 1.5 } }),
+    ],
+    [
+      "a clear bounded by a word",
+      JSON.stringify({ t: "cmd", id: "c", op: { type: "clear", addedUpTo: "now" } }),
+    ],
+    [
+      "a clear with an extra field",
+      JSON.stringify({
+        t: "cmd",
+        id: "c",
+        op: { type: "clear", addedUpTo: 1, ownerId: "ada" },
+      }),
     ],
     [
       "an add with a number for a link",

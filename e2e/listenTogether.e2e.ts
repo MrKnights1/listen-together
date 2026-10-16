@@ -162,4 +162,32 @@ test("two listeners hear the same moment, and each one's controls reach the othe
       })
       .toBe(true);
   });
+
+  await test.step("one clears the queue after saying yes, and it empties for both", async () => {
+    const queued = (page: Page) => page.locator(".queue .row");
+    const clear = ada.getByRole("button", { name: "Clear queue" });
+    const question = ada.getByRole("dialog", { name: "Clear the queue?" });
+    await add(bob, first.videoId);
+    for (const page of [ada, bob]) await expect(queued(page)).toHaveCount(1);
+
+    await clear.click();
+    await expect(question).toContainText("This removes 1 song from Up next for everyone.");
+    await question.press("Escape");
+    await expect(question).toHaveCount(0);
+
+    await clear.click();
+    await question.getByRole("button", { name: "Keep songs" }).click();
+    await expect(question).toHaveCount(0);
+    for (const page of [ada, bob]) await expect(queued(page)).toHaveCount(1);
+
+    await clear.click();
+    await question.getByRole("button", { name: "Clear queue" }).click();
+
+    await expect(question).toHaveCount(0);
+    for (const page of [ada, bob]) {
+      await expect(page.getByText("Nothing queued.")).toBeVisible();
+      await expect(page.locator(".now__title")).toHaveText(second.title);
+    }
+    await expect(bob.locator(".feed")).toContainText("Ada cleared 1 song from the queue");
+  });
 });

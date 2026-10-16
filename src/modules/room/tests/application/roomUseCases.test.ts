@@ -120,6 +120,25 @@ describe("ControlRoom", () => {
     expect(state().current?.entryId).toBe("entry-2");
   });
 
+  test("lets anyone clear the queue for everyone, and the feed says how many went", async () => {
+    source.link("x", [trackInfo("one"), trackInfo("two"), trackInfo("three")]);
+    await addFromLink().execute("ada", "x", "song");
+
+    const decision = await new ControlRoom(engine).execute("bob", {
+      type: "clear",
+      addedUpTo: NOW,
+    });
+
+    expect(decision.kind).toBe("accepted");
+    expect(state().queue).toEqual([]);
+    expect(state().current?.entryId).toBe("entry-1");
+    expect(activity.all().at(-1)).toMatchObject({
+      actorId: "bob",
+      kind: "cleared",
+      detail: { count: 2 },
+    });
+  });
+
   test("refuses the room's own commands if a message ever smuggles one in", async () => {
     const smuggled = { type: "auto_pause" } as unknown as PersonCommand;
 

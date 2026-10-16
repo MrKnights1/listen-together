@@ -128,6 +128,10 @@ export function RoomPage({ me }: { me: SessionUser }) {
   const shuffleMine = useCallback(() => {
     if (room.you !== null) control({ type: "shuffle", ownerId: room.you });
   }, [room.you, control]);
+  const clearQueue = useCallback(
+    (addedUpTo: number) => control({ type: "clear", addedUpTo }),
+    [control],
+  );
 
   const rows = useMemo<QueueRow[]>(
     () =>
@@ -140,6 +144,7 @@ export function RoomPage({ me }: { me: SessionUser }) {
             ownerId: entry.ownerId,
             track: tracks[entry.trackId],
             durationMs: entry.durationMs,
+            addedAt: entry.addedAt,
           },
         ];
       }),
@@ -265,6 +270,7 @@ export function RoomPage({ me }: { me: SessionUser }) {
             onMove={moveEntry}
             onRemove={removeEntry}
             onShuffleMine={shuffleMine}
+            onClear={clearQueue}
           />
         </main>
 

@@ -63,6 +63,12 @@ export function addSummary(result: AddResult): string {
   return parts.join(" ");
 }
 
+/** What clearing the queue will do, asked before it is done. */
+export function clearQuestion(count: number): string {
+  const what = count === 1 ? "1 song" : `all ${songs(count)}`;
+  return `This removes ${what} from Up next for everyone. The song playing now keeps playing.`;
+}
+
 /** A listener's line in "Listening now". */
 export function presenceLine(
   listening: boolean,
@@ -108,6 +114,8 @@ export function activityLine(entry: ActivityEntry): string {
       return `jumped to ${formatDuration(entry.detail.positionMs ?? 0)}`;
     case "moved":
       return `moved ${title}`;
+    case "cleared":
+      return `cleared ${songs(entry.detail.count ?? 0)} from the queue`;
     case "shuffled":
       return entry.detail.ownerId === null ? "shuffled the queue" : "shuffled their songs";
     case "repeat_set":

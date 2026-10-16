@@ -4,6 +4,7 @@ import { OWNER_COLORS, ownerColor } from "@/modules/room/ui/ownerColor.ts";
 import {
   activityLine,
   addSummary,
+  clearQuestion,
   formatDuration,
   presenceLine,
   refusal,
@@ -87,6 +88,25 @@ describe("wording", () => {
     expect(
       activityLine({ id: 3, at: 0, actorId: "a", kind: "seeked", detail: { positionMs: 90_000 } }),
     ).toBe("jumped to 1:30");
+  });
+});
+
+describe("clearing the queue", () => {
+  test("says how many songs went, in the feed", () => {
+    const line = (count: number) =>
+      activityLine({ id: 1, at: 0, actorId: "a", kind: "cleared", detail: { count } });
+
+    expect(line(1)).toBe("cleared 1 song from the queue");
+    expect(line(12)).toBe("cleared 12 songs from the queue");
+  });
+
+  test("asks about exactly the songs that will go, and that the song playing stays", () => {
+    expect(clearQuestion(1)).toBe(
+      "This removes 1 song from Up next for everyone. The song playing now keeps playing.",
+    );
+    expect(clearQuestion(12)).toBe(
+      "This removes all 12 songs from Up next for everyone. The song playing now keeps playing.",
+    );
   });
 });
 

@@ -21,6 +21,11 @@ export type RoomCommand =
   | { type: "skip"; entryId: string }
   | { type: "remove"; entryId: string }
   | { type: "move"; entryId: string; toIndex: number }
+  /**
+   * Empties the queue of everything added up to `addedUpTo` — the newest song
+   * the sender saw — so a song added while they were deciding is kept.
+   */
+  | { type: "clear"; addedUpTo: number }
   /** Mixes one person's songs among the places they already hold. */
   | { type: "shuffle"; ownerId: string }
   | { type: "repeat"; mode: RepeatMode }

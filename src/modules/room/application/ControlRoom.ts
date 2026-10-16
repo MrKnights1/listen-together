@@ -13,6 +13,7 @@ export type PersonCommand = Extract<
       | "skip"
       | "remove"
       | "move"
+      | "clear"
       | "shuffle"
       | "repeat"
       | "set_shuffle";
@@ -26,6 +27,7 @@ const PERSON_COMMANDS = new Set<RoomCommand["type"]>([
   "skip",
   "remove",
   "move",
+  "clear",
   "shuffle",
   "repeat",
   "set_shuffle",

@@ -6,10 +6,11 @@ import type { ActivityEntry } from "@/modules/room/domain/activity.ts";
 import type { LinkScope } from "@/modules/room/domain/ports/TrackSource.ts";
 import type { RepeatMode } from "@/modules/room/domain/RoomState.ts";
 import type { TrackInfo } from "@/modules/room/domain/TrackInfo.ts";
+import { ConfirmDialog } from "@/shared/ui/ConfirmDialog.tsx";
 import { Icon } from "@/shared/ui/Icon.tsx";
 import type { ConnectionState } from "./RoomConnection.ts";
 import { ownerColor } from "./ownerColor.ts";
-import { activityLine, formatDuration, presenceLine } from "./wording.ts";
+import { activityLine, clearQuestion, formatDuration, presenceLine } from "./wording.ts";
 
 function Avatar({ person, size }: { person: Person | undefined; size: number }) {
   // Decorative: the name is always written beside it.
@@ -279,6 +280,20 @@ export interface QueueRow {
   ownerId: string;
   track: TrackInfo | undefined;
   durationMs: number;
+  addedAt: number;
+}
+
+/** The queue as it was when "Clear queue" was clicked: what the person is asked about. */
+interface ClearRequest {
+  count: number;
+  addedUpTo: number;
+}
+
+function clearRequest(rows: QueueRow[]): ClearRequest {
+  return {
+    count: rows.length,
+    addedUpTo: rows.reduce((newest, row) => Math.max(newest, row.addedAt), 0),
+  };
 }
 
 /**
@@ -293,6 +308,7 @@ export const UpNextList = memo(function UpNextList({
   onMove,
   onRemove,
   onShuffleMine,
+  onClear,
 }: {
   rows: QueueRow[];
   /** While on, the list is a pool to draw from, not a running order: it drops its numbers. */
@@ -302,22 +318,49 @@ export const UpNextList = memo(function UpNextList({
   onMove: (entryId: string, toIndex: number) => void;
   onRemove: (entryId: string) => void;
   onShuffleMine: () => void;
+  /** Clears every queued song added up to `addedUpTo`, once the person has said yes. */
+  onClear: (addedUpTo: number) => void;
 }) {
+  const [clearing, setClearing] = useState<ClearRequest | null>(null);
   const mine = rows.filter((row) => row.ownerId === you).length;
   return (
     <section className="upnext" aria-labelledby="upnext-heading" id="upnext">
       <div className="upnext__head">
         <h2 id="upnext-heading">Up next</h2>
-        <button
-          type="button"
-          className="button button--small"
-          disabled={mine < 2}
-          onClick={onShuffleMine}
-        >
-          <Icon name="shuffle" />
-          Shuffle my songs
-        </button>
+        <div className="upnext__actions">
+          <button
+            type="button"
+            className="button button--small"
+            disabled={mine < 2}
+            onClick={onShuffleMine}
+          >
+            <Icon name="shuffle" />
+            Shuffle my songs
+          </button>
+          <button
+            type="button"
+            className="button button--small button--danger"
+            disabled={rows.length === 0}
+            onClick={() => setClearing(clearRequest(rows))}
+          >
+            <Icon name="remove" />
+            Clear queue
+          </button>
+        </div>
       </div>
+      {clearing !== null && (
+        <ConfirmDialog
+          title="Clear the queue?"
+          message={clearQuestion(clearing.count)}
+          confirmLabel="Clear queue"
+          cancelLabel="Keep songs"
+          onConfirm={() => {
+            setClearing(null);
+            onClear(clearing.addedUpTo);
+          }}
+          onCancel={() => setClearing(null)}
+        />
+      )}
       <p className="upnext__note">
         {shuffle
           ? "Shuffle is on: each next song is picked at random."

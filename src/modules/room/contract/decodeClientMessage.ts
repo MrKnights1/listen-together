@@ -69,6 +69,13 @@ function decodeOp(op: unknown): CommandOp | null {
       ? { type, entryId: op["entryId"], toIndex: op["toIndex"] }
       : null;
   }
+  if (type === "clear") {
+    const addedUpTo = op["addedUpTo"];
+    return hasOnly(op, ["type", "addedUpTo"]) &&
+      isWholeNumber(addedUpTo, 0, Number.MAX_SAFE_INTEGER)
+      ? { type, addedUpTo }
+      : null;
+  }
   if (type === "shuffle") {
     const ownerId = op["ownerId"];
     return hasOnly(op, ["type", "ownerId"]) && isId(ownerId) ? { type, ownerId } : null;

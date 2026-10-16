@@ -218,6 +218,24 @@ describe("commands", () => {
     expect(engine.snapshot().state.shuffle).toBe(true);
   });
 
+  test("anyone may clear the queue for everyone, and the feed says who", async () => {
+    source.link("x", [trackInfo("one"), trackInfo("two"), trackInfo("three")]);
+    const ada = await connect("ada");
+    const bob = await connect("bob");
+    await say(ada, { t: "cmd", id: "c1", op: { type: "add", url: "x", scope: "song" } });
+
+    await say(bob, { t: "cmd", id: "c2", op: { type: "clear", addedUpTo: NOW } });
+
+    expect(bob.last("ack")).toEqual({ t: "ack", id: "c2", result: null });
+    expect(ada.last("ev")?.events).toEqual([{ type: "cleared", entryIds: ["entry-2", "entry-3"] }]);
+    expect(ada.last("ev")?.activity).toMatchObject({
+      actorId: "bob",
+      kind: "cleared",
+      detail: { count: 2 },
+    });
+    expect(engine.snapshot().state.queue).toEqual([]);
+  });
+
   test("a command aimed at a song that has moved on is refused as stale", async () => {
     const ada = await connect("ada");
 
