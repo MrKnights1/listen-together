@@ -14,20 +14,17 @@ import { positionAt } from "@/modules/room/domain/playback.ts";
 import type { RepeatMode } from "@/modules/room/domain/RoomState.ts";
 import { BrandMark } from "@/shared/ui/BrandMark.tsx";
 import { Icon } from "@/shared/ui/Icon.tsx";
-import {
-  ActivityFeed,
-  AddTrackForm,
-  ArtworkGlow,
-  ConnectionBanner,
-  ListenButton,
-  ListenerList,
-  NowPlaying,
-  SeekBar,
-  SyncNotice,
-  TransportControls,
-  UpNextList,
-  type QueueRow,
-} from "./components.tsx";
+import { ActivityFeed } from "./ActivityFeed.tsx";
+import { AddTrackForm } from "./AddTrackForm.tsx";
+import { ArtworkGlow } from "./ArtworkGlow.tsx";
+import { ConnectionBanner } from "./ConnectionBanner.tsx";
+import { ListenButton } from "./ListenButton.tsx";
+import { ListenerList } from "./ListenerList.tsx";
+import { NowPlaying } from "./NowPlaying.tsx";
+import { SeekBar } from "./SeekBar.tsx";
+import { SyncNotice } from "./SyncNotice.tsx";
+import { TransportControls } from "./TransportControls.tsx";
+import { UpNextList, type QueueRow } from "./UpNextList.tsx";
 import { useRoom } from "./useRoom.ts";
 import { addSummary, refusal } from "./wording.ts";
 

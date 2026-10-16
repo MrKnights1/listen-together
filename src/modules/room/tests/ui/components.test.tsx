@@ -1,19 +1,16 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import {
-  ActivityFeed,
-  AddTrackForm,
-  ArtworkGlow,
-  ConnectionBanner,
-  ListenButton,
-  ListenerList,
-  NowPlaying,
-  PlaylistChoice,
-  SeekBar,
-  TransportControls,
-  UpNextList,
-  type QueueRow,
-} from "@/modules/room/ui/components.tsx";
+import { ActivityFeed } from "@/modules/room/ui/ActivityFeed.tsx";
+import { AddTrackForm } from "@/modules/room/ui/AddTrackForm.tsx";
+import { ArtworkGlow } from "@/modules/room/ui/ArtworkGlow.tsx";
+import { ConnectionBanner } from "@/modules/room/ui/ConnectionBanner.tsx";
+import { ListenButton } from "@/modules/room/ui/ListenButton.tsx";
+import { ListenerList } from "@/modules/room/ui/ListenerList.tsx";
+import { NowPlaying } from "@/modules/room/ui/NowPlaying.tsx";
+import { PlaylistChoice } from "@/modules/room/ui/PlaylistChoice.tsx";
+import { SeekBar } from "@/modules/room/ui/SeekBar.tsx";
+import { TransportControls } from "@/modules/room/ui/TransportControls.tsx";
+import { UpNextList, type QueueRow } from "@/modules/room/ui/UpNextList.tsx";
 import { trackInfo } from "@/modules/room/tests/support/fakes.ts";
 
 const people = {
