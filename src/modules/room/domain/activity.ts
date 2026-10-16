@@ -25,7 +25,7 @@ export interface ActivityDetail {
   title?: string;
   positionMs?: number;
   mode?: RepeatMode;
-  /** Null on lines from before shuffle became a switch: the whole queue was shuffled once. */
+  /** Null when the whole queue was shuffled; an id on older lines, when one person shuffled only their own songs. */
   ownerId?: string | null;
   on?: boolean;
 }
@@ -95,7 +95,7 @@ export function describeActivity(
     case "clear":
       return line("cleared", { count: queuedUpTo(before, command.addedUpTo).length });
     case "shuffle":
-      return line("shuffled", { ownerId: command.ownerId });
+      return line("shuffled", { ownerId: null });
     case "repeat":
       return line("repeat_set", { mode: command.mode });
     case "set_shuffle":

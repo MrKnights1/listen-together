@@ -133,7 +133,7 @@ describe("shuffle in the feed", () => {
     expect(line(false)).toBe("unstarred Song x");
   });
 
-  /** The feed keeps a month: lines from the one-time Shuffle all are still in it. */
+  /** The feed keeps a month: lines from when one person shuffled only their own songs are still in it. */
   test("still reads a whole-queue shuffle from before shuffle was a switch", () => {
     const line = (ownerId: string | null) =>
       activityLine({ id: 1, at: 0, actorId: "a", kind: "shuffled", detail: { ownerId } });

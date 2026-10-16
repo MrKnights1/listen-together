@@ -70,7 +70,7 @@ function randomCommand(
       now,
     };
   }
-  if (roll < 73) return { command: { type: "shuffle", ownerId: pick(random, OWNERS) }, now };
+  if (roll < 73) return { command: { type: "shuffle" }, now };
   if (roll < 75) return { command: { type: "set_shuffle", on: random.int(2) === 0 }, now };
   if (roll < 80)
     return { command: { type: "repeat", mode: pick(random, ["off", "one", "all"] as const) }, now };

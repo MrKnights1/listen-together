@@ -44,7 +44,7 @@ export type CommandOp =
   | { type: "seek"; entryId: string; positionMs: number }
   | { type: "move"; entryId: string; toIndex: number }
   | { type: "clear"; addedUpTo: number }
-  | { type: "shuffle"; ownerId: string }
+  | { type: "shuffle" }
   | { type: "repeat"; mode: RepeatMode }
   | { type: "set_shuffle"; on: boolean }
   | { type: "star"; entryId: string; on: boolean };

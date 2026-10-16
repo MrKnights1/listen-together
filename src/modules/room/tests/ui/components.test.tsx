@@ -229,11 +229,10 @@ describe("UpNextList", () => {
         shuffle={false}
         starred={[]}
         people={people}
-        you="ada"
         onMove={noop}
         onStar={noop}
         onRemove={noop}
-        onShuffleMine={noop}
+        onShuffleQueue={noop}
         onClear={noop}
       />,
     );
@@ -250,11 +249,10 @@ describe("UpNextList", () => {
         shuffle={false}
         starred={[]}
         people={people}
-        you="ada"
         onMove={noop}
         onStar={noop}
         onRemove={noop}
-        onShuffleMine={noop}
+        onShuffleQueue={noop}
         onClear={noop}
       />,
     );
@@ -271,11 +269,10 @@ describe("UpNextList", () => {
         shuffle={false}
         starred={[]}
         people={people}
-        you="ada"
         onMove={noop}
         onStar={noop}
         onRemove={noop}
-        onShuffleMine={noop}
+        onShuffleQueue={noop}
         onClear={noop}
       />,
     );
@@ -291,11 +288,10 @@ describe("UpNextList", () => {
         shuffle={false}
         starred={[]}
         people={people}
-        you="ada"
         onMove={noop}
         onStar={noop}
         onRemove={noop}
-        onShuffleMine={noop}
+        onShuffleQueue={noop}
         onClear={noop}
       />,
     );
@@ -316,11 +312,10 @@ describe("UpNextList", () => {
         shuffle={false}
         starred={[]}
         people={people}
-        you="ada"
         onMove={noop}
         onStar={noop}
         onRemove={noop}
-        onShuffleMine={noop}
+        onShuffleQueue={noop}
         onClear={noop}
       />,
     );
@@ -337,11 +332,10 @@ describe("UpNextList", () => {
         shuffle={true}
         starred={[]}
         people={people}
-        you="ada"
         onMove={noop}
         onStar={noop}
         onRemove={noop}
-        onShuffleMine={noop}
+        onShuffleQueue={noop}
         onClear={noop}
       />,
     );
@@ -360,11 +354,10 @@ describe("UpNextList", () => {
           shuffle={shuffle}
           starred={starred}
           people={people}
-          you="ada"
           onMove={noop}
           onStar={noop}
           onRemove={noop}
-          onShuffleMine={noop}
+          onShuffleQueue={noop}
           onClear={noop}
         />,
       );
@@ -419,15 +412,44 @@ describe("UpNextList", () => {
           shuffle={false}
           starred={[]}
           people={people}
-          you="ada"
           onMove={noop}
           onStar={noop}
           onRemove={noop}
-          onShuffleMine={noop}
+          onShuffleQueue={noop}
           onClear={noop}
         />,
       ),
     ).toContain("Nothing queued");
+  });
+
+  describe("Shuffle queue", () => {
+    const shuffleButton = (rows: QueueRow[]) => {
+      const html = renderToStaticMarkup(
+        <UpNextList
+          rows={rows}
+          shuffle={false}
+          starred={[]}
+          people={people}
+          onMove={noop}
+          onStar={noop}
+          onRemove={noop}
+          onShuffleQueue={noop}
+          onClear={noop}
+        />,
+      );
+      const button = /<button[^>]*>(?:(?!<\/button>).)*Shuffle queue<\/button>/.exec(html)?.[0];
+      if (button === undefined) throw new Error("There is no Shuffle queue button.");
+      return button;
+    };
+
+    test("shuffles everyone's songs, so two songs from two people are enough", () => {
+      expect(shuffleButton([row("a1", "ada"), row("b1", "bob")])).not.toContain("disabled");
+    });
+
+    test("cannot be pressed while fewer than two songs are queued", () => {
+      expect(shuffleButton([row("a1", "ada")])).toContain('disabled=""');
+      expect(shuffleButton([])).toContain('disabled=""');
+    });
   });
 
   describe("Clear queue", () => {
@@ -438,11 +460,10 @@ describe("UpNextList", () => {
           shuffle={false}
           starred={[]}
           people={people}
-          you="ada"
           onMove={noop}
           onStar={noop}
           onRemove={noop}
-          onShuffleMine={noop}
+          onShuffleQueue={noop}
           onClear={noop}
         />,
       );

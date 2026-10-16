@@ -126,9 +126,7 @@ export function RoomPage({ me }: { me: SessionUser }) {
     (entryId: string) => control({ type: "remove", entryId }),
     [control],
   );
-  const shuffleMine = useCallback(() => {
-    if (room.you !== null) control({ type: "shuffle", ownerId: room.you });
-  }, [room.you, control]);
+  const shuffleQueue = useCallback(() => control({ type: "shuffle" }), [control]);
   const clearQueue = useCallback(
     (addedUpTo: number) => control({ type: "clear", addedUpTo }),
     [control],
@@ -268,11 +266,10 @@ export function RoomPage({ me }: { me: SessionUser }) {
             shuffle={state.shuffle}
             starred={state.starred}
             people={people}
-            you={room.you}
             onMove={moveEntry}
             onStar={starEntry}
             onRemove={removeEntry}
-            onShuffleMine={shuffleMine}
+            onShuffleQueue={shuffleQueue}
             onClear={clearQueue}
           />
         </main>

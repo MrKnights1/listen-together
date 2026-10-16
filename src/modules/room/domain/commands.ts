@@ -26,8 +26,8 @@ export type RoomCommand =
    * the sender saw — so a song added while they were deciding is kept.
    */
   | { type: "clear"; addedUpTo: number }
-  /** Mixes one person's songs among the places they already hold. */
-  | { type: "shuffle"; ownerId: string }
+  /** Puts the whole queue, whoever added each song, in a new random order once. */
+  | { type: "shuffle" }
   | { type: "repeat"; mode: RepeatMode }
   | { type: "set_shuffle"; on: boolean }
   /** Stars a queued song to play next while shuffle is on, or takes its star off. */

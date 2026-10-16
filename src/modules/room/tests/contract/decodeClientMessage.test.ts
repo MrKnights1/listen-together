@@ -31,7 +31,7 @@ describe("decodeClientMessage — accepted", () => {
     [{ t: "cmd", id: "c5", op: { type: "remove", entryId: ENTRY } }],
     [{ t: "cmd", id: "c6", op: { type: "seek", entryId: ENTRY, positionMs: 90_000 } }],
     [{ t: "cmd", id: "c7", op: { type: "move", entryId: ENTRY, toIndex: 0 } }],
-    [{ t: "cmd", id: "c9", op: { type: "shuffle", ownerId: ENTRY } }],
+    [{ t: "cmd", id: "c9", op: { type: "shuffle" } }],
     [{ t: "cmd", id: "c10", op: { type: "repeat", mode: "all" } }],
     [{ t: "cmd", id: "c12", op: { type: "set_shuffle", on: true } }],
     [{ t: "cmd", id: "c13", op: { type: "set_shuffle", on: false } }],
@@ -98,8 +98,8 @@ describe("decodeClientMessage — refused", () => {
       JSON.stringify({ t: "cmd", id: "c", op: { type: "repeat", mode: "forever" } }),
     ],
     [
-      "a one-time shuffle of the whole queue, which is now a switch",
-      JSON.stringify({ t: "cmd", id: "c", op: { type: "shuffle", ownerId: null } }),
+      "a shuffle of one person's songs, from before it shuffled the whole queue",
+      JSON.stringify({ t: "cmd", id: "c", op: { type: "shuffle", ownerId: "ada" } }),
     ],
     [
       "a shuffle switch set to a word",

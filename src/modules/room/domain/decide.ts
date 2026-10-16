@@ -136,17 +136,6 @@ function shuffled(entryIds: string[], random: Random): string[] {
 }
 
 /**
- * Shuffles one person's songs among the places they already hold — so
- * shuffling your own songs never moves anybody else's.
- */
-function shuffleQueue(state: RoomState, ownerId: string, random: Random): string[] {
-  const mixed = shuffled(queuedBy(state, ownerId), random);
-  return state.queue.map((entryId) =>
-    state.entries[entryId]?.ownerId === ownerId ? (mixed.shift() ?? entryId) : entryId,
-  );
-}
-
-/**
  * Decides what a command does to the room, without changing it. Pure: the
  * clock and chance arrive in `context`, so every outcome can be tested by
  * choosing them.
@@ -204,7 +193,7 @@ export function decide(state: RoomState, command: RoomCommand, context: Decision
     }
 
     case "shuffle": {
-      const queue = shuffleQueue(state, command.ownerId, context.random);
+      const queue = shuffled(state.queue, context.random);
       return queue.every((entryId, index) => entryId === state.queue[index])
         ? accepted([])
         : accepted([{ type: "shuffled", queue }]);

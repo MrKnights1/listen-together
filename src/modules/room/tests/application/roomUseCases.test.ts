@@ -139,6 +139,26 @@ describe("ControlRoom", () => {
     });
   });
 
+  test("lets anyone shuffle the whole queue for everyone, and the feed says so", async () => {
+    // One adder for both, so the two people's songs get distinct entry ids.
+    const adding = addFromLink();
+    source.link("x", [trackInfo("one"), trackInfo("two"), trackInfo("three")]);
+    await adding.execute("ada", "x", "song");
+    source.link("y", [trackInfo("four")]);
+    await adding.execute("bob", "y", "song");
+
+    const decision = await new ControlRoom(engine).execute("cy", { type: "shuffle" });
+
+    expect(decision.kind).toBe("accepted");
+    expect([...state().queue].sort()).toEqual(["entry-2", "entry-3", "entry-4"]);
+    expect(state().current?.entryId).toBe("entry-1");
+    expect(activity.all().at(-1)).toMatchObject({
+      actorId: "cy",
+      kind: "shuffled",
+      detail: { ownerId: null },
+    });
+  });
+
   test("lets anyone star a song to play next for everyone, and the feed names it", async () => {
     source.link("x", [trackInfo("one"), trackInfo("two"), trackInfo("three")]);
     await addFromLink().execute("ada", "x", "song");

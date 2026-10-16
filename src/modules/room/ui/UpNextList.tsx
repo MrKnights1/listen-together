@@ -45,11 +45,10 @@ export const UpNextList = memo(function UpNextList({
   shuffle,
   starred,
   people,
-  you,
   onMove,
   onStar,
   onRemove,
-  onShuffleMine,
+  onShuffleQueue,
   onClear,
 }: {
   rows: QueueRow[];
@@ -61,16 +60,15 @@ export const UpNextList = memo(function UpNextList({
   /** The entries starred to play next, in the order they play. Shown only while shuffle is on. */
   starred: string[];
   people: Record<string, Person>;
-  you: string | null;
   onMove: (entryId: string, toIndex: number) => void;
   onStar: (entryId: string, on: boolean) => void;
   onRemove: (entryId: string) => void;
-  onShuffleMine: () => void;
+  /** Puts every queued song, whoever added it, in a new random order once. */
+  onShuffleQueue: () => void;
   /** Clears every queued song added up to `addedUpTo`, once the person has said yes. */
   onClear: (addedUpTo: number) => void;
 }) {
   const [clearing, setClearing] = useState<ClearRequest | null>(null);
-  const mine = rows.filter((row) => row.ownerId === you).length;
   /** Each starred entry's place in the starred line, from 1. */
   const starPlaces = useMemo(
     () => new Map(starred.map((entryId, index) => [entryId, index + 1])),
@@ -84,11 +82,11 @@ export const UpNextList = memo(function UpNextList({
           <button
             type="button"
             className="button button--small"
-            disabled={mine < 2}
-            onClick={onShuffleMine}
+            disabled={rows.length < 2}
+            onClick={onShuffleQueue}
           >
             <Icon name="shuffle" />
-            Shuffle my songs
+            Shuffle queue
           </button>
           <button
             type="button"

@@ -314,25 +314,19 @@ describe("move", () => {
 });
 
 describe("shuffle", () => {
-  test("shuffles one person's songs among the places they hold, and nobody else's", () => {
+  test("puts every queued song in a new order, whoever added it, and the song playing plays on", () => {
     const state = roomWith(["cy", 1], ["ada", 1], ["bob", 1], ["ada", 1], ["bob", 1], ["ada", 1]);
     const [a1, b1, a2, b2, a3] = state.queue;
 
-    // Fisher–Yates picks: index 2 swaps with 0, then index 1 stays.
-    const shuffled = apply(
-      state,
-      { type: "shuffle", ownerId: "ada" },
-      NOW,
-      new ScriptedRandom([0, 1]),
-    );
+    // Fisher–Yates picks: index 4 swaps with 1, then indexes 3, 2 and 1 stay.
+    const shuffled = apply(state, { type: "shuffle" }, NOW, new ScriptedRandom([1, 3, 2, 1]));
 
-    expect<(string | undefined)[]>(shuffled.queue).toEqual([a3, b1, a2, b2, a1]);
+    expect<(string | undefined)[]>(shuffled.queue).toEqual([a1, a3, a2, b2, b1]);
+    expect(shuffled.current).toEqual(state.current);
   });
 
-  test("a list of one has nothing to shuffle", () => {
-    expect(
-      decide(roomWith(["cy", 1], ["ada", 1]), { type: "shuffle", ownerId: "ada" }, context()),
-    ).toEqual({
+  test("a queue of one has nothing to shuffle", () => {
+    expect(decide(roomWith(["cy", 1], ["ada", 1]), { type: "shuffle" }, context())).toEqual({
       kind: "accepted",
       events: [],
     });

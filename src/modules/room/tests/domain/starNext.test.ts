@@ -120,6 +120,17 @@ describe("starring a song to play next while shuffle is on", () => {
     });
   });
 
+  test("shuffling the queue keeps the stars, in the order they were starred", () => {
+    let state = playingWith(4, true);
+    const [first, , third] = firstThree(state);
+    state = star(star(state, third), first);
+
+    const shuffled = apply(state, { type: "shuffle" }, NOW, new ScriptedRandom([1, 2, 0]));
+
+    expect(shuffled.queue).not.toEqual(state.queue);
+    expect(shuffled.starred).toEqual([third, first]);
+  });
+
   test("removing or clearing a starred song takes its star with it", () => {
     let state = playingWith(3, true);
     const [first, second, third] = firstThree(state);

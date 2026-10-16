@@ -76,10 +76,7 @@ function decodeOp(op: unknown): CommandOp | null {
       ? { type, addedUpTo }
       : null;
   }
-  if (type === "shuffle") {
-    const ownerId = op["ownerId"];
-    return hasOnly(op, ["type", "ownerId"]) && isId(ownerId) ? { type, ownerId } : null;
-  }
+  if (type === "shuffle") return hasOnly(op, ["type"]) ? { type } : null;
   if (type === "set_shuffle") {
     const on = op["on"];
     return hasOnly(op, ["type", "on"]) && typeof on === "boolean" ? { type, on } : null;
