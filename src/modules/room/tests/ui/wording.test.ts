@@ -8,6 +8,7 @@ import {
   formatDuration,
   presenceLine,
   refusal,
+  songs,
 } from "@/modules/room/ui/wording.ts";
 
 describe("wording", () => {
@@ -98,6 +99,14 @@ describe("clearing the queue", () => {
 
     expect(line(1)).toBe("cleared 1 song from the queue");
     expect(line(12)).toBe("cleared 12 songs from the queue");
+  });
+
+  test.each([
+    [0, "0 songs"],
+    [1, "1 song"],
+    [12, "12 songs"],
+  ])("writes a count of %d as %s", (count, text) => {
+    expect(songs(count)).toBe(text);
   });
 
   test("asks about exactly the songs that will go, and that the song playing stays", () => {

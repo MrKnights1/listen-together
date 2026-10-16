@@ -614,6 +614,19 @@
   padding: 8px 8px 0;
 }
 
+.upnext__title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.upnext__count {
+  color: var(--muted);
+  font-size: 0.9375rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .upnext__actions {
   display: flex;
   flex-wrap: wrap;

@@ -165,10 +165,14 @@ test("two listeners hear the same moment, and each one's controls reach the othe
 
   await test.step("one clears the queue after saying yes, and it empties for both", async () => {
     const queued = (page: Page) => page.locator(".queue .row");
+    const count = (page: Page) => page.locator(".upnext__count");
     const clear = ada.getByRole("button", { name: "Clear queue" });
     const question = ada.getByRole("dialog", { name: "Clear the queue?" });
     await add(bob, first.videoId);
-    for (const page of [ada, bob]) await expect(queued(page)).toHaveCount(1);
+    for (const page of [ada, bob]) {
+      await expect(queued(page)).toHaveCount(1);
+      await expect(count(page)).toHaveText("1 song");
+    }
 
     await clear.click();
     await expect(question).toContainText("This removes 1 song from Up next for everyone.");
@@ -186,6 +190,7 @@ test("two listeners hear the same moment, and each one's controls reach the othe
     await expect(question).toHaveCount(0);
     for (const page of [ada, bob]) {
       await expect(page.getByText("Nothing queued.")).toBeVisible();
+      await expect(count(page)).toHaveText("0 songs");
       await expect(page.locator(".now__title")).toHaveText(second.title);
     }
     await expect(bob.locator(".feed")).toContainText("Ada cleared 1 song from the queue");
@@ -202,6 +207,7 @@ test("two listeners hear the same moment, and each one's controls reach the othe
     for (const page of [ada, bob]) {
       await expect(page.getByRole("button", { name: "Shuffle is on" })).toBeVisible();
       await expect(queued(page)).toHaveCount(2);
+      await expect(page.locator(".upnext__count")).toHaveText("2 songs");
       await expect(page.getByRole("button", { name: /^Move / })).toHaveCount(0);
     }
 
@@ -217,6 +223,7 @@ test("two listeners hear the same moment, and each one's controls reach the othe
       await expect(page.locator(".now__title")).toHaveText(first.title);
       await expect(page.locator(".now__owner")).toContainText(PEOPLE[1].name);
       await expect(queued(page)).toHaveCount(1);
+      await expect(page.locator(".upnext__count")).toHaveText("1 song");
     }
 
     // Later tests share the room and expect it in order.

@@ -40,7 +40,8 @@ const SKIP_REASONS: Record<string, string> = {
   no_duration: "has no length",
 };
 
-const songs = (count: number) => `${count} ${count === 1 ? "song" : "songs"}`;
+/** 1 song, 12 songs. Also how many songs wait in Up next, beside its heading. */
+export const songs = (count: number) => `${count} ${count === 1 ? "song" : "songs"}`;
 
 /** What adding a link did, in one or two sentences. */
 export function addSummary(result: AddResult): string {

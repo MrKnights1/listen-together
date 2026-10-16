@@ -404,6 +404,36 @@ describe("UpNextList", () => {
     });
   });
 
+  describe("Song count", () => {
+    const render = (rows: QueueRow[]) =>
+      renderToStaticMarkup(
+        <UpNextList
+          rows={rows}
+          shuffle={false}
+          starred={[]}
+          people={people}
+          onMove={noop}
+          onStar={noop}
+          onRemove={noop}
+          onShuffleQueue={noop}
+          onClear={noop}
+        />,
+      );
+
+    test("says how many songs wait, beside the heading, which still reads Up next", () => {
+      const html = render([row("a1", "ada"), row("b1", "bob"), row("a2", "ada")]);
+
+      expect(html).toContain(
+        '<h2 id="upnext-heading">Up next</h2><span class="upnext__count">3 songs</span>',
+      );
+    });
+
+    test("says 1 song for one, and 0 songs when nothing is queued", () => {
+      expect(render([row("a1", "ada")])).toContain('<span class="upnext__count">1 song</span>');
+      expect(render([])).toContain('<span class="upnext__count">0 songs</span>');
+    });
+  });
+
   test("invites a paste when nothing is queued", () => {
     expect(
       renderToStaticMarkup(

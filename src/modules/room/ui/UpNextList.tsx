@@ -5,7 +5,7 @@ import { ConfirmDialog } from "@/shared/ui/ConfirmDialog.tsx";
 import { Icon } from "@/shared/ui/Icon.tsx";
 import { OwnerChip } from "./OwnerChip.tsx";
 import { ownerColor } from "./ownerColor.ts";
-import { clearQuestion, formatDuration } from "./wording.ts";
+import { clearQuestion, formatDuration, songs } from "./wording.ts";
 
 export interface QueueRow {
   entryId: string;
@@ -77,7 +77,10 @@ export const UpNextList = memo(function UpNextList({
   return (
     <section className="upnext" aria-labelledby="upnext-heading" id="upnext">
       <div className="upnext__head">
-        <h2 id="upnext-heading">Up next</h2>
+        <div className="upnext__title">
+          <h2 id="upnext-heading">Up next</h2>
+          <span className="upnext__count">{songs(rows.length)}</span>
+        </div>
         <div className="upnext__actions">
           <button
             type="button"
