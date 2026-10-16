@@ -190,4 +190,37 @@ test("two listeners hear the same moment, and each one's controls reach the othe
     }
     await expect(bob.locator(".feed")).toContainText("Ada cleared 1 song from the queue");
   });
+
+  await test.step("with shuffle on, one stars a song, and it plays next for both", async () => {
+    const queued = (page: Page) => page.locator(".queue .row");
+    const bobsRow = (page: Page) => queued(page).filter({ hasText: PEOPLE[1].name });
+    const playNext = `Play ${first.title} next`;
+    await ada.getByRole("button", { name: "Shuffle is off" }).click();
+    await add(ada, first.videoId);
+    await add(bob, first.videoId);
+
+    for (const page of [ada, bob]) {
+      await expect(page.getByRole("button", { name: "Shuffle is on" })).toBeVisible();
+      await expect(queued(page)).toHaveCount(2);
+      await expect(page.getByRole("button", { name: /^Move / })).toHaveCount(0);
+    }
+
+    await bobsRow(ada).getByRole("button", { name: playNext }).click();
+    await expect(bobsRow(bob).getByRole("button", { name: playNext })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await expect(bob.locator(".feed")).toContainText(`Ada starred ${first.title} to play next`);
+
+    await ada.getByRole("button", { name: "Skip" }).click();
+    for (const page of [ada, bob]) {
+      await expect(page.locator(".now__title")).toHaveText(first.title);
+      await expect(page.locator(".now__owner")).toContainText(PEOPLE[1].name);
+      await expect(queued(page)).toHaveCount(1);
+    }
+
+    // Later tests share the room and expect it in order.
+    await ada.getByRole("button", { name: "Shuffle is on" }).click();
+    await expect(bob.getByRole("button", { name: "Shuffle is off" })).toBeVisible();
+  });
 });

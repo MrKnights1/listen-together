@@ -38,10 +38,24 @@ export interface RoomState {
   repeat: RepeatMode;
   /** While on, each next song is drawn at random from the queue instead of taken from its top. */
   shuffle: boolean;
+  /**
+   * Queued entries somebody starred to play next, in the order they were
+   * starred. While shuffle is on they play before any random draw; while it
+   * is off they wait, unused, for it to come back on. Never holds the current entry.
+   */
+  starred: string[];
 }
 
 export function emptyRoom(): RoomState {
-  return { version: 0, entries: {}, queue: [], current: null, repeat: "off", shuffle: false };
+  return {
+    version: 0,
+    entries: {},
+    queue: [],
+    current: null,
+    repeat: "off",
+    shuffle: false,
+    starred: [],
+  };
 }
 
 /** Where a queued entry is in the line, or -1 if it is not queued. */

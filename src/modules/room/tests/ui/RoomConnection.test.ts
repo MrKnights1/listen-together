@@ -60,6 +60,7 @@ const welcome: ServerMessage = {
       current: null,
       repeat: "off",
       shuffle: false,
+      starred: [],
     },
     tracks: [],
     activity: [],

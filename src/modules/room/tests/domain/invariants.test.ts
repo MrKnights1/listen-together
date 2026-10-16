@@ -28,7 +28,7 @@ function randomCommand(
   const anyEntry = [...state.queue, state.current?.entryId ?? "gone"];
   const roll = random.int(100);
 
-  if (roll < 30) {
+  if (roll < 27) {
     const ownerId = pick(random, OWNERS);
     const fresh = songs(ownerId, 1 + random.int(4), 1000 * (30 + random.int(300)));
     // Sometimes re-add a song already in the room, to exercise duplicates.
@@ -47,6 +47,12 @@ function randomCommand(
           })),
         ],
       },
+      now,
+    };
+  }
+  if (roll < 30) {
+    return {
+      command: { type: "star", entryId: pick(random, anyEntry), on: random.int(3) !== 0 },
       now,
     };
   }
@@ -110,6 +116,12 @@ function structuralViolations(state: RoomState): string[] {
   if (JSON.stringify(entryIds) !== JSON.stringify([...seen].sort())) {
     problems.push("entries and queue+current disagree");
   }
+
+  const queued = new Set(state.queue);
+  if (state.starred.some((entryId) => !queued.has(entryId))) {
+    problems.push("a starred song is not queued");
+  }
+  if (new Set(state.starred).size !== state.starred.length) problems.push("a song starred twice");
 
   return problems;
 }
@@ -179,15 +191,22 @@ describe("room invariants under random commands", () => {
         }
 
         // Moving on — a skip, or a song ending without repeat-one — plays the head of the
-        // queue, or with shuffle on any song that was waiting, never the one that just played.
+        // queue, or with shuffle on the first starred song, else any song that was waiting;
+        // never the one that just played.
         const movesOn =
           decision.events.some((event) => event.type === "advanced") &&
           !(generated.command.type === "track_ended" && before.repeat === "one");
         const head = before.queue[0];
         if (movesOn && generated.command.type !== "add" && head !== undefined) {
           const playing = state.current?.entryId ?? "none";
-          const next = before.shuffle ? before.queue.includes(playing) : playing === head;
-          if (!next) failures.push(`${where}: did not play a waiting song`);
+          const starred = before.shuffle ? before.starred[0] : undefined;
+          const next =
+            starred !== undefined
+              ? playing === starred
+              : before.shuffle
+                ? before.queue.includes(playing)
+                : playing === head;
+          if (!next) failures.push(`${where}: did not play the song due next`);
         }
       }
     }
@@ -204,6 +223,18 @@ describe("room invariants under random commands", () => {
     };
 
     expect(structuralViolations(broken).length).toBeGreaterThanOrEqual(3);
+  });
+
+  test("the structural check catches a star on a song that is not queued, or starred twice", () => {
+    const queued: RoomState = {
+      ...emptyRoom(),
+      entries: { e1: { id: "e1", ownerId: "ada", trackId: "t", durationMs: 1, addedAt: 0 } },
+      queue: ["e1"],
+    };
+
+    expect(structuralViolations({ ...queued, starred: ["ghost"] })).not.toEqual([]);
+    expect(structuralViolations({ ...queued, starred: ["e1", "e1"] })).not.toEqual([]);
+    expect(structuralViolations({ ...queued, starred: ["e1"] })).toEqual([]);
   });
 
   test("the order check catches a song that jumped the queue", () => {

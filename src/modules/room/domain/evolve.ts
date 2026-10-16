@@ -43,6 +43,7 @@ function advance(state: RoomState, reason: RoomEvent & { type: "advanced" }): Ro
   return {
     ...room,
     queue: room.queue.filter((entryId) => entryId !== next),
+    starred: room.starred.filter((entryId) => entryId !== next),
     current: { entryId: next, status, positionMs: 0, anchorAt: reason.at },
   };
 }
@@ -89,7 +90,11 @@ export function evolve(state: RoomState, event: RoomEvent): RoomState {
     case "removed":
       if (state.entries[event.entryId] === undefined) return state;
       return withoutEntry(
-        { ...state, queue: state.queue.filter((id) => id !== event.entryId) },
+        {
+          ...state,
+          queue: state.queue.filter((id) => id !== event.entryId),
+          starred: state.starred.filter((id) => id !== event.entryId),
+        },
         event.entryId,
       );
 
@@ -105,7 +110,12 @@ export function evolve(state: RoomState, event: RoomEvent): RoomState {
       const gone = new Set(event.entryIds.filter((entryId) => queued.has(entryId)));
       const entries = { ...state.entries };
       for (const entryId of gone) delete entries[entryId];
-      return { ...state, entries, queue: state.queue.filter((entryId) => !gone.has(entryId)) };
+      return {
+        ...state,
+        entries,
+        queue: state.queue.filter((entryId) => !gone.has(entryId)),
+        starred: state.starred.filter((entryId) => !gone.has(entryId)),
+      };
     }
 
     case "shuffled":
@@ -116,6 +126,17 @@ export function evolve(state: RoomState, event: RoomEvent): RoomState {
 
     case "shuffle_set":
       return { ...state, shuffle: event.on };
+
+    case "star_set": {
+      const isStarred = state.starred.includes(event.entryId);
+      if (!state.queue.includes(event.entryId) || isStarred === event.on) return state;
+      return {
+        ...state,
+        starred: event.on
+          ? [...state.starred, event.entryId]
+          : state.starred.filter((id) => id !== event.entryId),
+      };
+    }
   }
 }
 

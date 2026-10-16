@@ -36,6 +36,8 @@ describe("decodeClientMessage — accepted", () => {
     [{ t: "cmd", id: "c12", op: { type: "set_shuffle", on: true } }],
     [{ t: "cmd", id: "c13", op: { type: "set_shuffle", on: false } }],
     [{ t: "cmd", id: "c14", op: { type: "clear", addedUpTo: 1_760_000_000_000 } }],
+    [{ t: "cmd", id: "c15", op: { type: "star", entryId: ENTRY, on: true } }],
+    [{ t: "cmd", id: "c16", op: { type: "star", entryId: ENTRY, on: false } }],
   ])("%o", (message) => {
     expect(decode(message)).toEqual(message as never);
   });
@@ -106,6 +108,26 @@ describe("decodeClientMessage — refused", () => {
     [
       "a shuffle switch with an extra field",
       JSON.stringify({ t: "cmd", id: "c", op: { type: "set_shuffle", on: true, seed: 4 } }),
+    ],
+    [
+      "a star that does not say on or off",
+      JSON.stringify({ t: "cmd", id: "c", op: { type: "star", entryId: "e1" } }),
+    ],
+    [
+      "a star set to a word",
+      JSON.stringify({ t: "cmd", id: "c", op: { type: "star", entryId: "e1", on: "yes" } }),
+    ],
+    [
+      "a star for an id that is not ours",
+      JSON.stringify({ t: "cmd", id: "c", op: { type: "star", entryId: "e 1", on: true } }),
+    ],
+    [
+      "a star with an extra field",
+      JSON.stringify({
+        t: "cmd",
+        id: "c",
+        op: { type: "star", entryId: "e1", on: true, place: 0 },
+      }),
     ],
     ["a clear without its bound", JSON.stringify({ t: "cmd", id: "c", op: { type: "clear" } })],
     [

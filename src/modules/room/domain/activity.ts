@@ -15,7 +15,8 @@ export type ActivityKind =
   | "cleared"
   | "shuffled"
   | "repeat_set"
-  | "shuffle_set";
+  | "shuffle_set"
+  | "star_set";
 
 export interface ActivityDetail {
   count?: number;
@@ -99,6 +100,8 @@ export function describeActivity(
       return line("repeat_set", { mode: command.mode });
     case "set_shuffle":
       return line("shuffle_set", { on: command.on });
+    case "star":
+      return line("star_set", { ...about(command.entryId), on: command.on });
     case "track_ended":
       return null;
   }

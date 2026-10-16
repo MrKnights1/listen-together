@@ -57,8 +57,12 @@ function parseRoomState(json: string): RoomState {
     : fromTurns(value);
   // A room saved before shuffle became a switch had no such switch: it was off.
   const shuffle = "shuffle" in value ? value["shuffle"] : false;
+  // A room saved before songs could be starred had none starred.
+  const starred: unknown = "starred" in value ? value["starred"] : [];
   if (
     typeof shuffle !== "boolean" ||
+    !Array.isArray(starred) ||
+    !starred.every((entryId): entryId is string => typeof entryId === "string") ||
     typeof value["version"] !== "number" ||
     !isRecord(value["entries"]) ||
     !queue.every((entryId): entryId is string => typeof entryId === "string") ||
@@ -75,6 +79,7 @@ function parseRoomState(json: string): RoomState {
     current: value["current"] as RoomState["current"],
     repeat: value["repeat"] as RoomState["repeat"],
     shuffle,
+    starred,
   };
 }
 

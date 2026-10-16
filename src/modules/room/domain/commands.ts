@@ -30,5 +30,7 @@ export type RoomCommand =
   | { type: "shuffle"; ownerId: string }
   | { type: "repeat"; mode: RepeatMode }
   | { type: "set_shuffle"; on: boolean }
+  /** Stars a queued song to play next while shuffle is on, or takes its star off. */
+  | { type: "star"; entryId: string; on: boolean }
   | { type: "track_ended"; entryId: string }
   | { type: "auto_pause" };

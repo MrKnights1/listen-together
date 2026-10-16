@@ -38,10 +38,11 @@ function isCurrent(state: RoomState, entryId: string): boolean {
 }
 
 /**
- * The entry the room moves on to: the top of `queue`, or with shuffle on any
- * of it at random. Repeat-one replays the song that ended. Repeat-all puts the
- * song that played back at the end of the queue, but picks it again only when
- * nothing else waits — so shuffle never plays one song twice in a row.
+ * The entry the room moves on to: the top of `queue`, or with shuffle on the
+ * first starred song, else any of it at random. Repeat-one replays the song
+ * that ended. Repeat-all puts the song that played back at the end of the
+ * queue, but picks it again only when nothing else waits — so shuffle never
+ * plays one song twice in a row.
  */
 function nextUp(
   state: RoomState,
@@ -51,6 +52,8 @@ function nextUp(
 ): string | null {
   const current = state.current;
   if (current !== null && reason === "ended" && state.repeat === "one") return current.entryId;
+  const starred = state.starred[0];
+  if (state.shuffle && starred !== undefined) return starred;
   if (queue.length > 0) return (state.shuffle ? queue[random.int(queue.length)] : queue[0]) ?? null;
   return current !== null && state.repeat === "all" && reason !== "removed"
     ? current.entryId
@@ -216,6 +219,14 @@ export function decide(state: RoomState, command: RoomCommand, context: Decision
       return state.shuffle === command.on
         ? accepted([])
         : accepted([{ type: "shuffle_set", on: command.on }]);
+
+    case "star":
+      // Stars are given while shuffle is on, to songs still waiting; anything
+      // else means the room changed after the sender looked.
+      if (!state.shuffle || queueIndex(state, command.entryId) === -1) return rejected("stale");
+      return state.starred.includes(command.entryId) === command.on
+        ? accepted([])
+        : accepted([{ type: "star_set", entryId: command.entryId, on: command.on }]);
 
     case "track_ended":
       // The alarm is re-armed after every command, but a stale one must still

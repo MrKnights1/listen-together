@@ -139,6 +139,26 @@ describe("ControlRoom", () => {
     });
   });
 
+  test("lets anyone star a song to play next for everyone, and the feed names it", async () => {
+    source.link("x", [trackInfo("one"), trackInfo("two"), trackInfo("three")]);
+    await addFromLink().execute("ada", "x", "song");
+    await new ControlRoom(engine).execute("ada", { type: "set_shuffle", on: true });
+
+    const decision = await new ControlRoom(engine).execute("bob", {
+      type: "star",
+      entryId: "entry-3",
+      on: true,
+    });
+
+    expect(decision.kind).toBe("accepted");
+    expect(state().starred).toEqual(["entry-3"]);
+    expect(activity.all().at(-1)).toMatchObject({
+      actorId: "bob",
+      kind: "star_set",
+      detail: { title: "Song three", on: true },
+    });
+  });
+
   test("refuses the room's own commands if a message ever smuggles one in", async () => {
     const smuggled = { type: "auto_pause" } as unknown as PersonCommand;
 

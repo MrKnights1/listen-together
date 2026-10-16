@@ -24,6 +24,9 @@ const REPEAT_ARROWS = (
 
 const SPEAKER = <path d="M11 5 6 9H2v6h4l5 4V5z" />;
 
+const STAR =
+  "M12 2.8l2.84 5.75 6.35.93-4.6 4.48 1.09 6.32L12 17.3l-5.68 2.98 1.09-6.32-4.6-4.48 6.35-.93z";
+
 const GLYPHS = {
   play: (
     <path
@@ -76,6 +79,8 @@ const GLYPHS = {
   up: <path {...STROKE} strokeWidth={2.2} d="m6 15 6-6 6 6" />,
   down: <path {...STROKE} strokeWidth={2.2} d="m6 9 6 6 6-6" />,
   remove: <path {...STROKE} strokeWidth={2.2} d="M6 6l12 12M18 6 6 18" />,
+  star: <path {...STROKE} d={STAR} />,
+  "star-filled": <path {...STROKE} fill="currentColor" d={STAR} />,
   people: (
     <g {...STROKE}>
       <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />

@@ -29,4 +29,6 @@ export type RoomEvent =
   /** The whole queue in its new order. */
   | { type: "shuffled"; queue: string[] }
   | { type: "repeat_set"; mode: RepeatMode }
-  | { type: "shuffle_set"; on: boolean };
+  | { type: "shuffle_set"; on: boolean }
+  /** A queued entry joined the end of the starred line, or left it. */
+  | { type: "star_set"; entryId: string; on: boolean };

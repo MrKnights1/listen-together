@@ -84,6 +84,12 @@ function decodeOp(op: unknown): CommandOp | null {
     const on = op["on"];
     return hasOnly(op, ["type", "on"]) && typeof on === "boolean" ? { type, on } : null;
   }
+  if (type === "star") {
+    const { entryId, on } = op;
+    return hasOnly(op, ["type", "entryId", "on"]) && isId(entryId) && typeof on === "boolean"
+      ? { type, entryId, on }
+      : null;
+  }
   if (type === "repeat") {
     const mode = op["mode"];
     return hasOnly(op, ["type", "mode"]) && typeof mode === "string" && REPEAT_MODES.has(mode)

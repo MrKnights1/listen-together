@@ -126,6 +126,8 @@ export function activityLine(entry: ActivityEntry): string {
           : "set repeat to the whole queue";
     case "shuffle_set":
       return entry.detail.on === true ? "turned shuffle on" : "turned shuffle off";
+    case "star_set":
+      return entry.detail.on === true ? `starred ${title} to play next` : `unstarred ${title}`;
   }
 }
 

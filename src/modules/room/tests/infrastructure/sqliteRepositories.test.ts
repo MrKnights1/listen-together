@@ -61,6 +61,7 @@ describe("SqliteRoomRepository", () => {
       current: saved.current,
       repeat: "all",
       shuffle: false,
+      starred: [],
     });
   });
 
@@ -75,7 +76,51 @@ describe("SqliteRoomRepository", () => {
 
     const loaded = await new SqliteRoomRepository(db).load();
 
-    expect(loaded?.state).toEqual({ ...saved, shuffle: false });
+    expect(loaded?.state).toEqual({ ...saved, shuffle: false, starred: [] });
+  });
+
+  /** Saved before songs could be starred: no `starred` at all, and none were. */
+  test("loads a room saved before songs could be starred with none starred", async () => {
+    const db = openDatabase(":memory:");
+    migrate(db);
+    const saved = {
+      version: 5,
+      entries: {
+        a1: { id: "a1", ownerId: "ada", trackId: "youtube:a1", durationMs: 1, addedAt: 10 },
+      },
+      queue: ["a1"],
+      current: null,
+      repeat: "off" as const,
+      shuffle: true,
+    };
+    db.query(
+      "INSERT INTO room_state (id, state, saved_at, clean_shutdown) VALUES (1, ?, 0, 1)",
+    ).run(JSON.stringify(saved));
+
+    const loaded = await new SqliteRoomRepository(db).load();
+
+    expect(loaded?.state).toEqual({ ...saved, starred: [] });
+  });
+
+  test("refuses a saved room whose starred songs are not a list of entry ids", async () => {
+    const db = openDatabase(":memory:");
+    migrate(db);
+    const insert = db.query(
+      "INSERT OR REPLACE INTO room_state (id, state, saved_at, clean_shutdown) VALUES (1, ?, 0, 1)",
+    );
+    const room = {
+      version: 3,
+      entries: {},
+      queue: [],
+      current: null,
+      repeat: "off",
+      shuffle: true,
+    };
+
+    for (const starred of ["a1", [1, 2], null]) {
+      insert.run(JSON.stringify({ ...room, starred }));
+      await expect(new SqliteRoomRepository(db).load()).rejects.toThrow("expected shape");
+    }
   });
 
   test("refuses a saved room whose shuffle is not on or off", async () => {

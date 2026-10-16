@@ -218,6 +218,25 @@ describe("commands", () => {
     expect(engine.snapshot().state.shuffle).toBe(true);
   });
 
+  test("anyone may star a song to play next for everyone, and the feed says who", async () => {
+    source.link("x", [trackInfo("one"), trackInfo("two"), trackInfo("three")]);
+    const ada = await connect("ada");
+    const bob = await connect("bob");
+    await say(ada, { t: "cmd", id: "c1", op: { type: "add", url: "x", scope: "song" } });
+    await say(ada, { t: "cmd", id: "c2", op: { type: "set_shuffle", on: true } });
+
+    await say(bob, { t: "cmd", id: "c3", op: { type: "star", entryId: "entry-3", on: true } });
+
+    expect(bob.last("ack")).toEqual({ t: "ack", id: "c3", result: null });
+    expect(ada.last("ev")?.events).toEqual([{ type: "star_set", entryId: "entry-3", on: true }]);
+    expect(ada.last("ev")?.activity).toMatchObject({
+      actorId: "bob",
+      kind: "star_set",
+      detail: { on: true },
+    });
+    expect(engine.snapshot().state.starred).toEqual(["entry-3"]);
+  });
+
   test("anyone may clear the queue for everyone, and the feed says who", async () => {
     source.link("x", [trackInfo("one"), trackInfo("two"), trackInfo("three")]);
     const ada = await connect("ada");

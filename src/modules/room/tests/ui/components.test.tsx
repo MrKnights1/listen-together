@@ -227,9 +227,11 @@ describe("UpNextList", () => {
       <UpNextList
         rows={[row("a1", "ada"), row("b1", "bob")]}
         shuffle={false}
+        starred={[]}
         people={people}
         you="ada"
         onMove={noop}
+        onStar={noop}
         onRemove={noop}
         onShuffleMine={noop}
         onClear={noop}
@@ -246,9 +248,11 @@ describe("UpNextList", () => {
       <UpNextList
         rows={[row("a1", "ada"), row("b1", "bob"), row("a2", "ada")]}
         shuffle={false}
+        starred={[]}
         people={people}
         you="ada"
         onMove={noop}
+        onStar={noop}
         onRemove={noop}
         onShuffleMine={noop}
         onClear={noop}
@@ -265,9 +269,11 @@ describe("UpNextList", () => {
       <UpNextList
         rows={[row("a1", "ada")]}
         shuffle={false}
+        starred={[]}
         people={people}
         you="ada"
         onMove={noop}
+        onStar={noop}
         onRemove={noop}
         onShuffleMine={noop}
         onClear={noop}
@@ -283,9 +289,11 @@ describe("UpNextList", () => {
       <UpNextList
         rows={[row("a1", "ada"), row("b1", "bob"), row("a2", "ada")]}
         shuffle={false}
+        starred={[]}
         people={people}
         you="ada"
         onMove={noop}
+        onStar={noop}
         onRemove={noop}
         onShuffleMine={noop}
         onClear={noop}
@@ -306,9 +314,11 @@ describe("UpNextList", () => {
       <UpNextList
         rows={[row("a1", "ada")]}
         shuffle={false}
+        starred={[]}
         people={people}
         you="ada"
         onMove={noop}
+        onStar={noop}
         onRemove={noop}
         onShuffleMine={noop}
         onClear={noop}
@@ -325,9 +335,11 @@ describe("UpNextList", () => {
       <UpNextList
         rows={[row("a1", "ada"), row("b1", "bob")]}
         shuffle={true}
+        starred={[]}
         people={people}
         you="ada"
         onMove={noop}
+        onStar={noop}
         onRemove={noop}
         onShuffleMine={noop}
         onClear={noop}
@@ -340,15 +352,76 @@ describe("UpNextList", () => {
     expect(html).not.toContain('<span class="row__n" aria-hidden="true">1</span>');
   });
 
+  describe("Stars", () => {
+    const render = (shuffle: boolean, starred: string[]) =>
+      renderToStaticMarkup(
+        <UpNextList
+          rows={[row("a1", "ada"), row("b1", "bob"), row("a2", "ada")]}
+          shuffle={shuffle}
+          starred={starred}
+          people={people}
+          you="ada"
+          onMove={noop}
+          onStar={noop}
+          onRemove={noop}
+          onShuffleMine={noop}
+          onClear={noop}
+        />,
+      );
+    const starButton = (html: string, title: string) =>
+      new RegExp(`<button[^>]*aria-label="Play ${title} next"[^>]*>`).exec(html)?.[0];
+
+    test("with shuffle on, every row offers a star instead of moving up or down", () => {
+      const html = render(true, []);
+
+      expect(html).not.toContain("Move Song");
+      for (const title of ["Song a1", "Song b1", "Song a2"]) {
+        expect(starButton(html, title)).toContain('aria-pressed="false"');
+      }
+      expect(html).toContain('aria-label="Remove Song a1 from the queue"');
+    });
+
+    test("shows each starred song pressed, with its place in the line, without hovering", () => {
+      const html = render(true, ["a2", "a1"]);
+
+      expect(starButton(html, "Song a2")).toContain('aria-pressed="true"');
+      expect(starButton(html, "Song a1")).toContain('aria-pressed="true"');
+      expect(starButton(html, "Song b1")).toContain('aria-pressed="false"');
+      const places = [...html.matchAll(/<span class="row__star">.*?(\d+)<\/span>/g)].map(
+        (match) => match[1],
+      );
+      // Rows stay in queue order: a1 is starred second, a2 first.
+      expect(places).toEqual(["2", "1"]);
+    });
+
+    test("says starred songs play first while any are starred", () => {
+      expect(render(true, [])).toContain("Star a song to play it next.");
+      expect(render(true, ["b1"])).toContain(
+        "Shuffle is on: starred songs play first, in the order they were starred, then each next song is picked at random.",
+      );
+    });
+
+    test("with shuffle off, the stars are hidden and the rows are numbered and movable", () => {
+      const html = render(false, ["b1"]);
+
+      expect(html).not.toContain("row__star");
+      expect(html).not.toContain('aria-label="Play ');
+      expect(html).toContain('aria-label="Move Song b1 earlier in the queue"');
+      expect(html).toContain('<span class="row__n" aria-hidden="true">2</span>');
+    });
+  });
+
   test("invites a paste when nothing is queued", () => {
     expect(
       renderToStaticMarkup(
         <UpNextList
           rows={[]}
           shuffle={false}
+          starred={[]}
           people={people}
           you="ada"
           onMove={noop}
+          onStar={noop}
           onRemove={noop}
           onShuffleMine={noop}
           onClear={noop}
@@ -363,9 +436,11 @@ describe("UpNextList", () => {
         <UpNextList
           rows={rows}
           shuffle={false}
+          starred={[]}
           people={people}
           you="ada"
           onMove={noop}
+          onStar={noop}
           onRemove={noop}
           onShuffleMine={noop}
           onClear={noop}

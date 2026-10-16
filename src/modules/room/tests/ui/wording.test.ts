@@ -119,6 +119,20 @@ describe("shuffle in the feed", () => {
     expect(line(false)).toBe("turned shuffle off");
   });
 
+  test("says who starred which song to play next, or took the star off", () => {
+    const line = (on: boolean) =>
+      activityLine({
+        id: 1,
+        at: 0,
+        actorId: "a",
+        kind: "star_set",
+        detail: { trackId: "youtube:x", title: "Song x", on },
+      });
+
+    expect(line(true)).toBe("starred Song x to play next");
+    expect(line(false)).toBe("unstarred Song x");
+  });
+
   /** The feed keeps a month: lines from the one-time Shuffle all are still in it. */
   test("still reads a whole-queue shuffle from before shuffle was a switch", () => {
     const line = (ownerId: string | null) =>

@@ -660,6 +660,21 @@
   text-align: right;
 }
 
+/* A starred song's place in the line that plays before the random draw: star over number. */
+.row__star {
+  display: grid;
+  justify-items: center;
+  color: var(--amber);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.row__star .icon {
+  width: 14px;
+  height: 14px;
+}
+
 .row__art {
   display: block;
   width: 64px;

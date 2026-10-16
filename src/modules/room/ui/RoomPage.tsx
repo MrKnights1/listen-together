@@ -118,6 +118,10 @@ export function RoomPage({ me }: { me: SessionUser }) {
     (entryId: string, toIndex: number) => control({ type: "move", entryId, toIndex }),
     [control],
   );
+  const starEntry = useCallback(
+    (entryId: string, on: boolean) => control({ type: "star", entryId, on }),
+    [control],
+  );
   const removeEntry = useCallback(
     (entryId: string) => control({ type: "remove", entryId }),
     [control],
@@ -262,9 +266,11 @@ export function RoomPage({ me }: { me: SessionUser }) {
           <UpNextList
             rows={rows}
             shuffle={state.shuffle}
+            starred={state.starred}
             people={people}
             you={room.you}
             onMove={moveEntry}
+            onStar={starEntry}
             onRemove={removeEntry}
             onShuffleMine={shuffleMine}
             onClear={clearQueue}

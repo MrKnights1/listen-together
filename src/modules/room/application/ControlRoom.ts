@@ -16,7 +16,8 @@ export type PersonCommand = Extract<
       | "clear"
       | "shuffle"
       | "repeat"
-      | "set_shuffle";
+      | "set_shuffle"
+      | "star";
   }
 >;
 
@@ -31,6 +32,7 @@ const PERSON_COMMANDS = new Set<RoomCommand["type"]>([
   "shuffle",
   "repeat",
   "set_shuffle",
+  "star",
 ]);
 
 /** Everyone in the room may pause, skip, seek and rearrange for everyone. */

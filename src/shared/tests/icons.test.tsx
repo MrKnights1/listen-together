@@ -24,6 +24,11 @@ describe("Icon", () => {
     );
   });
 
+  test("fills the star of a starred song, so a star shows without words", () => {
+    expect(renderToStaticMarkup(<Icon name="star-filled" />)).toContain('fill="currentColor"');
+    expect(renderToStaticMarkup(<Icon name="star" />)).not.toContain('fill="currentColor"');
+  });
+
   test("tells repeat-one apart from repeat, so the mode shows without words", () => {
     expect(renderToStaticMarkup(<Icon name="repeat-one" />)).not.toBe(
       renderToStaticMarkup(<Icon name="repeat" />),

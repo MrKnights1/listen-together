@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import type { Person } from "@/modules/room/contract/messages.ts";
 import type { TrackInfo } from "@/modules/room/domain/TrackInfo.ts";
 import { ConfirmDialog } from "@/shared/ui/ConfirmDialog.tsx";
@@ -28,6 +28,14 @@ function clearRequest(rows: QueueRow[]): ClearRequest {
   };
 }
 
+/** What the list says about how the next song is chosen. */
+function orderNote(shuffle: boolean, anyStarred: boolean): string {
+  if (!shuffle) return "Songs play in the order they were added.";
+  return anyStarred
+    ? "Shuffle is on: starred songs play first, in the order they were starred, then each next song is picked at random."
+    : "Shuffle is on: each next song is picked at random. Star a song to play it next.";
+}
+
 /**
  * Memoised: the page re-renders twice a second to move the clock, and a full
  * room is 5000 rows. The list only re-renders when the queue or people change.
@@ -35,19 +43,27 @@ function clearRequest(rows: QueueRow[]): ClearRequest {
 export const UpNextList = memo(function UpNextList({
   rows,
   shuffle,
+  starred,
   people,
   you,
   onMove,
+  onStar,
   onRemove,
   onShuffleMine,
   onClear,
 }: {
   rows: QueueRow[];
-  /** While on, the list is a pool to draw from, not a running order: it drops its numbers. */
+  /**
+   * While on, the list is a pool to draw from, not a running order: it drops
+   * its numbers and its move buttons, and songs can be starred to play next.
+   */
   shuffle: boolean;
+  /** The entries starred to play next, in the order they play. Shown only while shuffle is on. */
+  starred: string[];
   people: Record<string, Person>;
   you: string | null;
   onMove: (entryId: string, toIndex: number) => void;
+  onStar: (entryId: string, on: boolean) => void;
   onRemove: (entryId: string) => void;
   onShuffleMine: () => void;
   /** Clears every queued song added up to `addedUpTo`, once the person has said yes. */
@@ -55,6 +71,11 @@ export const UpNextList = memo(function UpNextList({
 }) {
   const [clearing, setClearing] = useState<ClearRequest | null>(null);
   const mine = rows.filter((row) => row.ownerId === you).length;
+  /** Each starred entry's place in the starred line, from 1. */
+  const starPlaces = useMemo(
+    () => new Map(starred.map((entryId, index) => [entryId, index + 1])),
+    [starred],
+  );
   return (
     <section className="upnext" aria-labelledby="upnext-heading" id="upnext">
       <div className="upnext__head">
@@ -93,11 +114,7 @@ export const UpNextList = memo(function UpNextList({
           onCancel={() => setClearing(null)}
         />
       )}
-      <p className="upnext__note">
-        {shuffle
-          ? "Shuffle is on: each next song is picked at random."
-          : "Songs play in the order they were added."}
-      </p>
+      <p className="upnext__note">{orderNote(shuffle, starred.length > 0)}</p>
       {rows.length === 0 ? (
         <p className="empty">Nothing queued. Paste a link to add the next song.</p>
       ) : (
@@ -105,6 +122,7 @@ export const UpNextList = memo(function UpNextList({
           {rows.map((row, index) => {
             const title = row.track?.title ?? "Unknown song";
             const owner = people[row.ownerId];
+            const starPlace = starPlaces.get(row.entryId);
             return (
               <li
                 key={row.entryId}
@@ -112,7 +130,14 @@ export const UpNextList = memo(function UpNextList({
                 style={{ "--owner": ownerColor(row.ownerId) } as React.CSSProperties}
               >
                 <span className="row__n" aria-hidden="true">
-                  {shuffle ? null : index + 1}
+                  {!shuffle ? (
+                    index + 1
+                  ) : starPlace === undefined ? null : (
+                    <span className="row__star">
+                      <Icon name="star-filled" />
+                      {starPlace}
+                    </span>
+                  )}
                 </span>
                 {row.track?.artworkUrl ? (
                   <img
@@ -137,26 +162,41 @@ export const UpNextList = memo(function UpNextList({
                   <span className="row__len">{formatDuration(row.durationMs)}</span>
                 </span>
                 <span className="row__actions">
-                  <button
-                    type="button"
-                    className="icon-button"
-                    disabled={index === 0}
-                    aria-label={`Move ${title} earlier in the queue`}
-                    title="Move earlier"
-                    onClick={() => onMove(row.entryId, index - 1)}
-                  >
-                    <Icon name="up" />
-                  </button>
-                  <button
-                    type="button"
-                    className="icon-button"
-                    disabled={index === rows.length - 1}
-                    aria-label={`Move ${title} later in the queue`}
-                    title="Move later"
-                    onClick={() => onMove(row.entryId, index + 1)}
-                  >
-                    <Icon name="down" />
-                  </button>
+                  {shuffle ? (
+                    <button
+                      type="button"
+                      className="icon-button"
+                      aria-label={`Play ${title} next`}
+                      aria-pressed={starPlace !== undefined}
+                      title={starPlace === undefined ? "Play next" : "Unstar"}
+                      onClick={() => onStar(row.entryId, starPlace === undefined)}
+                    >
+                      <Icon name={starPlace === undefined ? "star" : "star-filled"} />
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="icon-button"
+                        disabled={index === 0}
+                        aria-label={`Move ${title} earlier in the queue`}
+                        title="Move earlier"
+                        onClick={() => onMove(row.entryId, index - 1)}
+                      >
+                        <Icon name="up" />
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-button"
+                        disabled={index === rows.length - 1}
+                        aria-label={`Move ${title} later in the queue`}
+                        title="Move later"
+                        onClick={() => onMove(row.entryId, index + 1)}
+                      >
+                        <Icon name="down" />
+                      </button>
+                    </>
+                  )}
                   <button
                     type="button"
                     className="icon-button"
