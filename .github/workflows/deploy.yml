@@ -1,9 +1,13 @@
-# Deploys main to https://music.example.com on every push to it.
+# Deploys main to production on every push to it.
 #
 # The checks run before the push, in .husky/pre-push; this only asks the server
 # to deploy. DEPLOY_SSH_KEY can do nothing there but start the deploy (see
 # deploy/musicplayer-deploy.sh), and the server prints the deploy's log back.
 # Redeploy by hand with `gh workflow run deploy.yml`.
+#
+# The server's address and host key are secrets too, so the repository and
+# its run logs never name it: DEPLOY_HOST is its IP, DEPLOY_KNOWN_HOSTS its
+# known_hosts line (`ssh-keyscan -t ed25519 <ip>`).
 name: Deploy
 
 on:
@@ -26,11 +30,13 @@ jobs:
       - name: Deploy on the server
         env:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
         run: |
           install -d -m 700 ~/.ssh
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           # The server's own host key, so nothing else can answer in its place.
-          echo "<server IP> ssh-ed25519 <server host key>" > ~/.ssh/known_hosts
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
           ssh -T -i ~/.ssh/deploy_key -o BatchMode=yes -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=yes -o ServerAliveInterval=30 root@<server IP>
+            -o StrictHostKeyChecking=yes -o ServerAliveInterval=30 "root@$DEPLOY_HOST"

@@ -18,3 +18,14 @@ bun run dev             # http://localhost:3000
 Signing in needs a Discord application (OAuth2 redirect
 `http://localhost:3000/api/auth/discord/callback`) and your Discord user ID in
 `DISCORD_ALLOWED_USER_IDS`. Adding songs needs a YouTube Data API v3 key.
+
+## Deploy secrets
+
+Every push to `main` deploys through `.github/workflows/deploy.yml`, which needs these
+repository secrets (Settings → Secrets and variables → Actions, or `gh secret set <NAME>`):
+
+| Secret               | What it holds                                                                                                                                                                                               |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DEPLOY_SSH_KEY`     | The private half of a key whose public half is in the server's `/root/.ssh/authorized_keys` as `restrict,command="/usr/local/sbin/musicplayer-deploy" ssh-ed25519 …` (see `deploy/musicplayer-deploy.sh`) |
+| `DEPLOY_HOST`        | The server's IP address                                                                                                                                                                                     |
+| `DEPLOY_KNOWN_HOSTS` | The server's host key line, from `ssh-keyscan -t ed25519 <server IP>`                                                                                                                                       |

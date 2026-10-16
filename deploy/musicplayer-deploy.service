@@ -13,7 +13,7 @@
 # No [Install] section: nothing starts it but a deploy.
 
 [Unit]
-Description=musicplayer: deploy origin/main to music.example.com
+Description=musicplayer: deploy origin/main
 After=network-online.target
 Wants=network-online.target
 

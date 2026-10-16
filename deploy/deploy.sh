@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 #
-# Deploys origin/main to https://music.example.com. musicplayer-deploy.service
+# Deploys origin/main to the site at APP_URL. musicplayer-deploy.service
 # runs it, reading this file from origin/main rather than the working tree.
 # GitHub's Deploy workflow starts that unit on every push to main; by hand:
 #
-#   ssh root@<server IP> systemctl start musicplayer-deploy
+#   ssh root@<server> systemctl start musicplayer-deploy
 #
 # Not by streaming this file over ssh any more: only the unit keeps two deploys
 # from running at once.
@@ -17,8 +17,6 @@
 set -euo pipefail
 
 APP=/root/musicplayer
-WEB=/var/www/music.example.com
-SITE=music.example.com
 BUN=/root/.bun/bin/bun
 cd "$APP"
 
@@ -26,14 +24,23 @@ for tool in git curl rsync; do
   command -v "$tool" >/dev/null || { echo "$tool is not installed" >&2; exit 1; }
 done
 
-# Read from the .env the service runs with, so the checks hit the port Bun listens on.
+# Read from the .env the service runs with, so the checks hit the port Bun listens on
+# and the domain stays out of the repository: the site is APP_URL's host.
 env_value() { sed -n "s/^$1=//p" .env | tail -n 1; }
 PORT=$(env_value PORT)
 DATABASE=$(env_value DATABASE_PATH)
+SITE=$(env_value APP_URL | sed -E 's#^https://##')
 if [ -z "$PORT" ] || [ -z "$DATABASE" ]; then
   echo "PORT and DATABASE_PATH must be set in $APP/.env" >&2
   exit 1
 fi
+case "$SITE" in
+  "" | */* | *:*)
+    echo "APP_URL in $APP/.env must be https://<domain>, with no port or path" >&2
+    exit 1
+    ;;
+esac
+WEB=/var/www/$SITE
 
 row_counts() {
   "$BUN" -e '

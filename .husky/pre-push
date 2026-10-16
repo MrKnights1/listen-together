@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # Judges the whole tree before main is pushed, because a push to main is a
-# deploy: .github/workflows/deploy.yml sends it straight to music.example.com.
+# deploy: .github/workflows/deploy.yml sends it straight to production.
 # Pushing any other branch checks nothing.
 #
 # The same caveat as pre-commit: the checks read the working tree, not the
