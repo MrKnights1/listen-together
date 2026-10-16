@@ -1,11 +1,18 @@
 #!/usr/bin/env bash
 #
-# Deploys origin/main to https://music.example.com:
+# Deploys origin/main to https://music.example.com. musicplayer-deploy.service
+# runs it, reading this file from origin/main rather than the working tree.
+# GitHub's Deploy workflow starts that unit on every push to main; by hand:
 #
-#   ssh root@<server IP> 'bash -s' < deploy/deploy.sh
+#   ssh root@<server IP> systemctl start musicplayer-deploy
 #
-# Backup, fast-forward-only pull, install, build, publish the pages, restart,
-# smoke check. Touches no rows.
+# Not by streaming this file over ssh any more: only the unit keeps two deploys
+# from running at once.
+#
+# Backup, fast-forward-only pull, then the release: install, build, publish the
+# pages, restart, smoke check. A release that fails at any step goes back to the
+# commit that was running before, releases that again, and exits 1 either way.
+# Touches no rows.
 #
 set -euo pipefail
 
@@ -54,6 +61,7 @@ else
 fi
 
 echo "=== before ==="
+BEFORE=$(git rev-parse HEAD)
 git log --oneline -1
 
 echo "=== pulling ==="
@@ -61,28 +69,30 @@ echo "=== pulling ==="
 git pull --ff-only origin main --quiet
 git log --oneline -1
 
-echo "=== installing and building ==="
-# --production: the tools for writing the code are not needed to run it.
-# --ignore-scripts: `prepare` installs git hooks, which the server has no use for.
-"$BUN" install --frozen-lockfile --production --ignore-scripts
-"$BUN" scripts/buildClient.ts >/dev/null
+# Every step returns on failure by hand: bash switches set -e off inside a
+# function called as a condition, as release and smoke are below.
+release() {
+  echo "=== installing and building ==="
+  # --production: the tools for writing the code are not needed to run it.
+  # --ignore-scripts: `prepare` installs git hooks, which the server has no use for.
+  "$BUN" install --frozen-lockfile --production --ignore-scripts || return 1
+  "$BUN" scripts/buildClient.ts >/dev/null || return 1
 
-echo "=== publishing the pages ==="
-# The trailing slashes copy the folder's contents; --delete drops older builds' assets.
-rsync -a --delete dist/public/ "$WEB/"
+  echo "=== publishing the pages ==="
+  # The trailing slashes copy the folder's contents; --delete drops older builds' assets.
+  rsync -a --delete dist/public/ "$WEB/" || return 1
 
-echo "=== restarting ==="
-systemctl restart musicplayer.service
-for _ in $(seq 1 40); do
-  curl -sf "http://127.0.0.1:$PORT/api/health" >/dev/null && break
-  sleep 0.25
-done
-systemctl is-active musicplayer.service
+  echo "=== restarting ==="
+  systemctl restart musicplayer.service || return 1
+  for _ in $(seq 1 40); do
+    curl -sf "http://127.0.0.1:$PORT/api/health" >/dev/null && break
+    sleep 0.25
+  done
+  systemctl is-active musicplayer.service || return 1
+}
 
-echo "=== smoke check, through nginx ==="
-# Status codes only, and every failure counted rather than exiting on the
-# first: under set -e a check that finds nothing would end the script after a
-# deploy that worked, which reads like a failure.
+# Status codes only, and every path checked rather than stopping at the first
+# failure, so the log shows all that is wrong at once.
 failed=0
 check() {
   local code
@@ -90,20 +100,37 @@ check() {
   printf '  %-44s %s\n' "$1" "$code"
   [ "$code" = 200 ] || failed=1
 }
-check /
-check /login
-check /admin
-check /api/health
-for asset in $(grep -oh '/assets/[^"]*' "$WEB/room.html" "$WEB/login.html" "$WEB/admin.html" | sort -u); do
-  check "$asset"
-done
 
-# Housekeeping runs at start: expired sessions, unused old tracks and month-old feed lines go.
-echo "=== row counts after ==="
-row_counts
+smoke() {
+  echo "=== smoke check, through nginx ==="
+  failed=0
+  check /
+  check /login
+  check /admin
+  check /api/health
+  local asset
+  for asset in $(grep -oh '/assets/[^"]*' "$WEB/room.html" "$WEB/login.html" "$WEB/admin.html" | sort -u); do
+    check "$asset"
+  done
+  [ "$failed" -eq 0 ]
+}
 
-if [ "$failed" -ne 0 ]; then
-  echo "SMOKE CHECK FAILED: the site is not answering as it should" >&2
-  exit 1
+if release && smoke; then
+  # Housekeeping runs at start: expired sessions, unused old tracks and month-old feed lines go.
+  echo "=== row counts after ==="
+  row_counts
+  echo "deployed: $(git log --oneline -1)"
+  exit 0
 fi
-echo "deployed: $(git log --oneline -1)"
+
+# The database stays as the failed release left it: the migrator skips
+# migrations it has no file for, so the older code runs on a schema that only
+# gained things. The backup above is there for anything worse.
+echo "DEPLOY FAILED at $(git log --oneline -1); rolling back to $(git log --oneline -1 "$BEFORE")" >&2
+git reset --hard --quiet "$BEFORE"
+if release && smoke; then
+  echo "rolled back: running $(git log --oneline -1)" >&2
+else
+  echo "ROLLBACK FAILED: the site may be down" >&2
+fi
+exit 1

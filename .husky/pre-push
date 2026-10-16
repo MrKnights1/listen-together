@@ -1,0 +1,27 @@
+#!/bin/sh
+#
+# Judges the whole tree before main is pushed, because a push to main is a
+# deploy: .github/workflows/deploy.yml sends it straight to music.example.com.
+# Pushing any other branch checks nothing.
+#
+# The same caveat as pre-commit: the checks read the working tree, not the
+# commits being pushed, so uncommitted edits are judged along with them.
+# `git push --no-verify` skips all of this and deploys unchecked code.
+
+set -e
+
+# Git passes one line per ref: <local ref> <local sha> <remote ref> <remote sha>.
+pushes_main=false
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+  if [ "$remote_ref" = refs/heads/main ]; then
+    pushes_main=true
+  fi
+done
+
+[ "$pushes_main" = true ] || exit 0
+
+echo "pre-push: main is about to deploy, checking the tree first"
+bun run typecheck
+bun run lint
+bun run format:check
+bun run test

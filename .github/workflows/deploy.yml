@@ -1,0 +1,36 @@
+# Deploys main to https://music.example.com on every push to it.
+#
+# The checks run before the push, in .husky/pre-push; this only asks the server
+# to deploy. DEPLOY_SSH_KEY can do nothing there but start the deploy (see
+# deploy/musicplayer-deploy.sh), and the server prints the deploy's log back.
+# Redeploy by hand with `gh workflow run deploy.yml`.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One deploy at a time: a push during a deploy waits its turn rather than cutting it short.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Deploy on the server
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # The server's own host key, so nothing else can answer in its place.
+          echo "<server IP> ssh-ed25519 <server host key>" > ~/.ssh/known_hosts
+          ssh -T -i ~/.ssh/deploy_key -o BatchMode=yes -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes -o ServerAliveInterval=30 root@<server IP>

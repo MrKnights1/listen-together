@@ -1,0 +1,25 @@
+# /etc/systemd/system/musicplayer-deploy.service
+#
+# One deploy of origin/main. Started by /usr/local/sbin/musicplayer-deploy, the
+# only command GitHub's deploy key may run, or by hand:
+#
+#   systemctl start musicplayer-deploy
+#
+# It runs deploy.sh as committed in origin/main, not the copy in the working
+# tree, so each commit brings the deploy script it needs. As a oneshot unit it
+# runs one deploy at a time, and carries on if the ssh session that started it
+# drops. Its output is in `journalctl -u musicplayer-deploy`.
+#
+# No [Install] section: nothing starts it but a deploy.
+
+[Unit]
+Description=musicplayer: deploy origin/main to music.example.com
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Sets HOME=/root, where git finds its access to the private repository.
+User=root
+ExecStart=/bin/bash -c 'set -euo pipefail; cd /root/musicplayer; git fetch --quiet origin main; git show FETCH_HEAD:deploy/deploy.sh | bash -s'
+TimeoutStartSec=15min
