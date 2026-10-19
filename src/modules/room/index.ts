@@ -28,3 +28,4 @@ export { SqliteRoomRepository } from "./infrastructure/persistence/SqliteRoomRep
 export { SqliteActivityRepository } from "./infrastructure/persistence/SqliteActivityRepository.ts";
 export { CatalogTrackSource, type CatalogUseCases } from "./infrastructure/CatalogTrackSource.ts";
 export { MathRandom } from "./infrastructure/MathRandom.ts";
+export { ConsolePasteLog } from "./infrastructure/ConsolePasteLog.ts";

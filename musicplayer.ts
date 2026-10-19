@@ -49,6 +49,7 @@ import {
 
 import {
   AddFromLink,
+  ConsolePasteLog,
   CatalogTrackSource,
   ControlRoom,
   createRoomSocketRoute,
@@ -173,7 +174,7 @@ const describePeople = new DescribePeople(new IdentityPeopleDirectory(new FindUs
 const roomSockets = new RoomSockets({
   getSessionUser,
   engine: roomEngine,
-  addFromLink: new AddFromLink(trackSource, roomEngine, ids),
+  addFromLink: new AddFromLink(trackSource, roomEngine, ids, new ConsolePasteLog()),
   controlRoom: new ControlRoom(roomEngine),
   getRoomView: new GetRoomView(roomEngine, activity, describePeople),
   describePeople,

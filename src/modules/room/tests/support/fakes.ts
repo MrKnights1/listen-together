@@ -4,6 +4,7 @@ import type { Timers } from "@/shared/domain/Timers.ts";
 import type { ActivityEntry, NewActivity } from "@/modules/room/domain/activity.ts";
 import { LinkRejected, type LinkRejectionCode } from "@/modules/room/domain/errors.ts";
 import type { ActivityRepository } from "@/modules/room/domain/ports/ActivityRepository.ts";
+import type { Paste, PasteLog } from "@/modules/room/domain/ports/PasteLog.ts";
 import type { RoomRepository, StoredRoom } from "@/modules/room/domain/ports/RoomRepository.ts";
 import type {
   LinkScope,
@@ -175,6 +176,15 @@ export class StubTrackSource implements TrackSource {
   async maintain(referencedTrackIds: string[]): Promise<string[]> {
     this.maintainedWith.push([...referencedTrackIds].sort());
     return this.unplayable.filter((id) => referencedTrackIds.includes(id));
+  }
+}
+
+/** Pastes kept in memory, in the order they were recorded. */
+export class RecordingPasteLog implements PasteLog {
+  readonly pastes: Paste[] = [];
+
+  record(paste: Paste): void {
+    this.pastes.push(paste);
   }
 }
 

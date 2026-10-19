@@ -22,6 +22,7 @@ import {
   InMemoryPeopleDirectory,
   InMemoryRoomRepository,
   ManualTimers,
+  RecordingPasteLog,
   SequenceIds,
   StubTrackSource,
   trackInfo,
@@ -36,6 +37,7 @@ let timers: ManualTimers;
 let rooms: InMemoryRoomRepository;
 let activity: InMemoryActivityRepository;
 let source: StubTrackSource;
+let pasteLog: RecordingPasteLog;
 let engine: RoomEngine;
 
 beforeEach(() => {
@@ -44,11 +46,12 @@ beforeEach(() => {
   rooms = new InMemoryRoomRepository();
   activity = new InMemoryActivityRepository();
   source = new StubTrackSource();
+  pasteLog = new RecordingPasteLog();
   engine = new RoomEngine({ rooms, activity, clock, timers, random: new ScriptedRandom() });
   engine.load(emptyRoom(), []);
 });
 
-const addFromLink = () => new AddFromLink(source, engine, new SequenceIds());
+const addFromLink = () => new AddFromLink(source, engine, new SequenceIds(), pasteLog);
 const state = () => engine.snapshot().state;
 
 describe("AddFromLink", () => {
@@ -74,7 +77,7 @@ describe("AddFromLink", () => {
     source.link("youtu.be/x", [trackInfo("one"), trackInfo("two")]);
     await addFromLink().execute("ada", "youtu.be/x", "song");
 
-    const again = await new AddFromLink(source, engine, new SequenceIds()).execute(
+    const again = await new AddFromLink(source, engine, new SequenceIds(), pasteLog).execute(
       "ada",
       "youtu.be/x",
       "song",
@@ -89,6 +92,7 @@ describe("AddFromLink", () => {
 
     await expect(addFromLink().execute("ada", "youtu.be/x", "song")).rejects.toThrow(LinkRejected);
     expect(rooms.saves).toBe(0);
+    expect(pasteLog.pastes).toEqual([]);
   });
 
   test("passes the person's choice of song or playlist on to the catalog", async () => {
@@ -97,6 +101,23 @@ describe("AddFromLink", () => {
     await addFromLink().execute("ada", "youtu.be/x?list=PL", "playlist");
 
     expect(source.scopes).toEqual(["playlist"]);
+  });
+
+  test("logs each paste exactly as pasted, with who pasted it and how many songs it added", async () => {
+    const pasted = "  https://youtube.com/watch?v=x&list=PL1&si=track \n";
+    source.link(pasted, [trackInfo("one"), trackInfo("two")]);
+
+    await addFromLink().execute("ada", pasted, "playlist");
+
+    expect(pasteLog.pastes).toEqual([{ actorId: "ada", pasted, scope: "playlist", added: 2 }]);
+  });
+
+  test("logs a paste that added nothing new, so every paste is on record", async () => {
+    source.link("youtu.be/x", [trackInfo("one")]);
+    await addFromLink().execute("ada", "youtu.be/x", "song");
+    await addFromLink().execute("ada", "youtu.be/x", "song");
+
+    expect(pasteLog.pastes.map((paste) => paste.added)).toEqual([1, 0]);
   });
 
   test("says when a playlist was cut short", async () => {

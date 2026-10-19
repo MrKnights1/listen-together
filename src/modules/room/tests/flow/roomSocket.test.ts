@@ -31,7 +31,12 @@ import { IdentityPeopleDirectory } from "@/modules/room/infrastructure/IdentityP
 import { MathRandom } from "@/modules/room/infrastructure/MathRandom.ts";
 import { SqliteActivityRepository } from "@/modules/room/infrastructure/persistence/SqliteActivityRepository.ts";
 import { SqliteRoomRepository } from "@/modules/room/infrastructure/persistence/SqliteRoomRepository.ts";
-import { SequenceIds, StubTrackSource, trackInfo } from "@/modules/room/tests/support/fakes.ts";
+import {
+  RecordingPasteLog,
+  SequenceIds,
+  StubTrackSource,
+  trackInfo,
+} from "@/modules/room/tests/support/fakes.ts";
 
 /**
  * The room's live connection end to end: a real server, real WebSockets, real
@@ -94,7 +99,7 @@ beforeEach(() => {
   sockets = new RoomSockets({
     getSessionUser,
     engine,
-    addFromLink: new AddFromLink(source, engine, new SequenceIds()),
+    addFromLink: new AddFromLink(source, engine, new SequenceIds(), new RecordingPasteLog()),
     controlRoom: new ControlRoom(engine),
     getRoomView: new GetRoomView(engine, activity, describePeople),
     describePeople,

@@ -68,6 +68,15 @@ export default tseslint.config(
     rules: { "no-console": "off" },
   },
 
+  /** The paste log prints on purpose: the server log is where a host finds the link behind a paste. */
+  {
+    files: [
+      "src/modules/room/infrastructure/ConsolePasteLog.ts",
+      "src/modules/room/tests/infrastructure/ConsolePasteLog.test.ts",
+    ],
+    rules: { "no-console": ["error", { allow: ["warn", "error", "info"] }] },
+  },
+
   /** `exhaustive-deps` is what stands between the room socket and a stale closure. */
   {
     files: ["**/*.tsx"],

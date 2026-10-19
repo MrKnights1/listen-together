@@ -1,4 +1,5 @@
 import type { IdGenerator } from "@/shared/domain/IdGenerator.ts";
+import type { PasteLog } from "@/modules/room/domain/ports/PasteLog.ts";
 import type {
   LinkScope,
   SkippedSong,
@@ -29,6 +30,7 @@ export class AddFromLink {
     private readonly trackSource: TrackSource,
     private readonly engine: RoomEngine,
     private readonly ids: IdGenerator,
+    private readonly pastes: PasteLog,
   ) {}
 
   async execute(actorId: string, pasted: string, scope: LinkScope): Promise<AddReport> {
@@ -50,12 +52,14 @@ export class AddFromLink {
 
     // `add` is never rejected: it reports what it could not take instead.
     const outcome = decision.kind === "accepted" ? decision.add : undefined;
-    return {
+    const report: AddReport = {
       added: outcome?.added.length ?? 0,
       duplicates: outcome?.duplicates.length ?? 0,
       overflow: outcome?.overflow ?? 0,
       skipped: resolved.skipped,
       truncated: resolved.truncated,
     };
+    this.pastes.record({ actorId, pasted, scope, added: report.added });
+    return report;
   }
 }
