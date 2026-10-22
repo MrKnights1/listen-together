@@ -22,6 +22,8 @@ export interface SyncedPlayerOptions {
   onStatus: (status: SyncStatus, errorCode: number | null) => void;
   /** The browser refused sound without a click: show the "Start listening" button again. */
   onAutoplayBlocked: () => void;
+  /** Told whenever the provider's player starts or stops playing (buffering counts as playing). */
+  onPlaying: (playing: boolean) => void;
 }
 
 /**
@@ -40,6 +42,7 @@ export class SyncedPlayer {
   private volume = 100;
   private muted = false;
   private reported: { status: SyncStatus; errorCode: number | null } | null = null;
+  private reportedPlaying = false;
   private destroyed = false;
 
   constructor(private readonly options: SyncedPlayerOptions) {}
@@ -73,6 +76,7 @@ export class SyncedPlayer {
     if (target !== null && this.listening && !this.ready(target.provider)) {
       this.ensureAdapter(target.provider);
       this.report("catching_up", null);
+      this.reportPlaying(false);
       return;
     }
 
@@ -87,6 +91,8 @@ export class SyncedPlayer {
     this.memory = step.memory;
     if (adapter !== null) for (const action of step.actions) this.apply(adapter, action);
     this.report(step.status, step.status === "error" ? this.error : null);
+    // As the player last said: a pause asked for now is reported once the player has paused.
+    this.reportPlaying(view.state === "playing" || view.state === "buffering");
   }
 
   destroy(): void {
@@ -161,5 +167,11 @@ export class SyncedPlayer {
     if (this.reported?.status === status && this.reported.errorCode === errorCode) return;
     this.reported = { status, errorCode };
     this.options.onStatus(status, errorCode);
+  }
+
+  private reportPlaying(playing: boolean): void {
+    if (this.reportedPlaying === playing) return;
+    this.reportedPlaying = playing;
+    this.options.onPlaying(playing);
   }
 }

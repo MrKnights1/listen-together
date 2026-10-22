@@ -3,6 +3,7 @@ import { SignOutButton, type SessionUser } from "@/modules/identity/ui/index.ts"
 import {
   PlayerTile,
   readAudioPreferences,
+  useMediaKeys,
   useSyncedPlayer,
   VolumeControl,
   writeAudioPreferences,
@@ -109,10 +110,29 @@ export function RoomPage({ me }: { me: SessionUser }) {
     [send],
   );
 
-  const togglePause = useCallback(() => {
-    if (current === null) return;
-    control({ type: current.status === "playing" ? "pause" : "resume", entryId: current.entryId });
-  }, [current, control]);
+  /** Pauses, resumes or skips the song the room is on, from the buttons or the media keys. */
+  const steer = useCallback(
+    (type: "pause" | "resume" | "skip") => {
+      if (current !== null) control({ type, entryId: current.entryId });
+    },
+    [current, control],
+  );
+  const togglePause = useCallback(
+    () => steer(current?.status === "playing" ? "pause" : "resume"),
+    [current, steer],
+  );
+  const skip = useCallback(() => steer("skip"), [steer]);
+  const playback = current === null ? "idle" : current.status;
+
+  useMediaKeys({
+    listening,
+    playback,
+    songPlaying: player.playing,
+    nowPlaying: currentTrack ?? null,
+    onPlay: () => steer("resume"),
+    onPause: () => steer("pause"),
+    onNext: skip,
+  });
 
   const moveEntry = useCallback(
     (entryId: string, toIndex: number) => control({ type: "move", entryId, toIndex }),
@@ -226,11 +246,11 @@ export function RoomPage({ me }: { me: SessionUser }) {
               }
             />
             <TransportControls
-              status={current === null ? "idle" : current.status}
+              status={playback}
               repeat={state.repeat}
               shuffle={state.shuffle}
               onToggle={togglePause}
-              onSkip={() => current !== null && control({ type: "skip", entryId: current.entryId })}
+              onSkip={skip}
               onShuffle={(on) => control({ type: "set_shuffle", on })}
               onRepeat={(mode: RepeatMode) => control({ type: "repeat", mode })}
             />

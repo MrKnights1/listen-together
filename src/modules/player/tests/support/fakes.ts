@@ -1,4 +1,10 @@
 import type {
+  MediaKeyAction,
+  MediaSessionPort,
+  NowPlayingInfo,
+  SilentLoop,
+} from "@/modules/player/ui/MediaKeys.ts";
+import type {
   PlayerAdapter,
   PlayerEvents,
   PlayerState,
@@ -52,6 +58,58 @@ export class FakeAdapter implements PlayerAdapter {
   }
 
   destroy(): void {
+    this.destroyed = true;
+  }
+}
+
+/** The browser's media session as the system sees it: what it shows, and a key to press. */
+export class FakeMediaSession implements MediaSessionPort {
+  metadata: NowPlayingInfo | null = null;
+  metadataSets = 0;
+  playbackState: "none" | "paused" | "playing" = "none";
+  readonly handlers = new Map<MediaKeyAction, () => void>();
+
+  setMetadata(info: NowPlayingInfo | null): void {
+    this.metadata = info;
+    this.metadataSets += 1;
+  }
+
+  setPlaybackState(state: "none" | "paused" | "playing"): void {
+    this.playbackState = state;
+  }
+
+  setActionHandler(action: MediaKeyAction, handler: (() => void) | null): void {
+    if (handler === null) this.handlers.delete(action);
+    else this.handlers.set(action, handler);
+  }
+
+  /** Presses a media key; one with no handler does nothing, as in the browser. */
+  press(action: MediaKeyAction): void {
+    this.handlers.get(action)?.();
+  }
+}
+
+/** A silent loop that records whether it plays, and can be told to refuse. */
+export class FakeLoop implements SilentLoop {
+  playing = false;
+  destroyed = false;
+  plays = 0;
+
+  constructor(private readonly refusal: Error | null = null) {}
+
+  play(): Promise<void> {
+    this.plays += 1;
+    if (this.refusal !== null) return Promise.reject(this.refusal);
+    this.playing = true;
+    return Promise.resolve();
+  }
+
+  pause(): void {
+    this.playing = false;
+  }
+
+  destroy(): void {
+    this.playing = false;
     this.destroyed = true;
   }
 }

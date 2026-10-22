@@ -33,6 +33,14 @@ async function playback(page: Page): Promise<Playback | null> {
   });
 }
 
+/** What this page hands the system's media controls: the song shown and whether it plays. */
+async function mediaControls(page: Page): Promise<{ title: string | null; state: string }> {
+  return page.evaluate(() => ({
+    title: navigator.mediaSession.metadata?.title ?? null,
+    state: navigator.mediaSession.playbackState,
+  }));
+}
+
 /** Both players read at once, then carried to the same instant so they can be compared. */
 async function readBoth(a: Page, b: Page): Promise<{ a: Playback; b: Playback; apartMs: number }> {
   const [first, second] = await Promise.all([playback(a), playback(b)]);
@@ -102,6 +110,12 @@ test("two listeners hear the same moment, and each one's controls reach the othe
     await expect.poll(async () => (await readBoth(ada, bob)).apartMs).toBeLessThan(SAME_MOMENT_MS);
   });
 
+  await test.step("the system's media controls show the room's song, playing", async () => {
+    for (const page of [ada, bob]) {
+      expect(await mediaControls(page)).toEqual({ title: first.title, state: "playing" });
+    }
+  });
+
   await test.step("one mutes in the player, and only their own sound goes", async () => {
     const nowPlaying = ada.getByRole("region", { name: "Now playing" });
     await expect(nowPlaying.getByRole("slider", { name: "Volume" })).toBeVisible();
@@ -127,6 +141,9 @@ test("two listeners hear the same moment, and each one's controls reach the othe
       .toBe(true);
     const { a, b } = await readBoth(ada, bob);
     expect(Math.abs(a.positionMs - b.positionMs)).toBeLessThan(500);
+    for (const page of [ada, bob]) {
+      await expect.poll(async () => (await mediaControls(page)).state).toBe("paused");
+    }
   });
 
   await test.step("the other resumes, and both play on together", async () => {
@@ -134,6 +151,9 @@ test("two listeners hear the same moment, and each one's controls reach the othe
 
     await expect.poll(async () => (await playback(ada))?.paused).toBe(false);
     await expect.poll(async () => (await readBoth(ada, bob)).apartMs).toBeLessThan(SAME_MOMENT_MS);
+    for (const page of [ada, bob]) {
+      await expect.poll(async () => (await mediaControls(page)).state).toBe("playing");
+    }
   });
 
   await test.step("one jumps ahead, and both land there", async () => {
@@ -161,6 +181,7 @@ test("two listeners hear the same moment, and each one's controls reach the othe
         return apartMs < SAME_MOMENT_MS && a.positionMs < 60_000;
       })
       .toBe(true);
+    expect((await mediaControls(bob)).title).toBe(second.title);
   });
 
   await test.step("one clears the queue after saying yes, and it empties for both", async () => {

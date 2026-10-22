@@ -8,6 +8,7 @@ let target: Target | null;
 let adapters: FakeAdapter[];
 let statuses: [SyncStatus, number | null][];
 let blocked: number;
+let playing: boolean[];
 let player: SyncedPlayer;
 
 beforeEach(() => {
@@ -23,6 +24,7 @@ beforeEach(() => {
   adapters = [];
   statuses = [];
   blocked = 0;
+  playing = [];
   player = new SyncedPlayer({
     createAdapter: async (_provider, events) => {
       const adapter = new FakeAdapter(events);
@@ -35,6 +37,7 @@ beforeEach(() => {
     onAutoplayBlocked: () => {
       blocked += 1;
     },
+    onPlaying: (now) => playing.push(now),
   });
 });
 
@@ -124,6 +127,42 @@ describe("SyncedPlayer", () => {
 
     expect(statuses.at(-1)).toEqual(["in_sync", null]);
     expect(statuses.length).toBe(before);
+  });
+
+  test("says the song's player is playing once it plays, and not before", async () => {
+    player.setListening(true);
+    await settle();
+    expect(playing).toEqual([]);
+
+    player.tick();
+
+    expect(playing).toEqual([true]);
+  });
+
+  test("says the song's player stopped only once the player itself has paused", async () => {
+    player.setListening(true);
+    await settle();
+    player.tick();
+    if (target !== null) target = { ...target, playing: false };
+
+    player.tick();
+    expect(adapters[0]?.calls).toContain("pause");
+    expect(playing).toEqual([true]);
+
+    adapters[0]?.events.onStateChange("paused");
+    expect(playing).toEqual([true, false]);
+  });
+
+  test("counts a buffering player as still playing", async () => {
+    player.setListening(true);
+    await settle();
+    player.tick();
+    const adapter = adapters[0];
+    if (adapter !== undefined) adapter.current.state = "buffering";
+
+    player.tick();
+
+    expect(playing).toEqual([true]);
   });
 
   test("resync forgets everything and loads afresh", async () => {

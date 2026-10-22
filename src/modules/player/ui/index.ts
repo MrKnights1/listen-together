@@ -15,6 +15,7 @@ export {
 export type { PlayerAdapter, PlayerEvents, PlayerState } from "./PlayerAdapter.ts";
 export { SyncedPlayer } from "./SyncedPlayer.ts";
 export { useSyncedPlayer, type SyncedPlayerState } from "./useSyncedPlayer.ts";
+export { useMediaKeys } from "./useMediaKeys.ts";
 export { PlayerTile } from "./PlayerTile.tsx";
 export { VolumeControl } from "./VolumeControl.tsx";
 export {

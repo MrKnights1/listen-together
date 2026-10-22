@@ -21,6 +21,8 @@ export interface SyncedPlayerState {
   errorCode: number | null;
   /** True after the browser refused sound: the "Start listening" button must come back. */
   autoplayBlocked: boolean;
+  /** The provider's player is playing (or buffering) for this listener right now. */
+  playing: boolean;
   resync: () => void;
 }
 
@@ -53,6 +55,7 @@ export function useSyncedPlayer({
     errorCode: null,
   });
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
+  const [playing, setPlaying] = useState(false);
   const playerRef = useRef<SyncedPlayer | null>(null);
 
   useEffect(() => {
@@ -69,6 +72,7 @@ export function useSyncedPlayer({
         setAutoplayBlocked(true);
         blockedRef.current();
       },
+      onPlaying: setPlaying,
     });
     playerRef.current = player;
     const interval = setInterval(() => player.tick(), TICK_MS);
@@ -90,5 +94,5 @@ export function useSyncedPlayer({
 
   const resync = useCallback(() => playerRef.current?.resync(), []);
 
-  return { ...status, autoplayBlocked, resync };
+  return { ...status, autoplayBlocked, playing, resync };
 }
