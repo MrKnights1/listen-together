@@ -36,6 +36,18 @@ const byKey = <T>(items: T[], key: (item: T) => string): Record<string, T> =>
   Object.fromEntries(items.map((item) => [key(item), item]));
 
 /**
+ * The people known, with these added or updated. The same object back when
+ * nothing changed, so what is drawn from it is not redrawn for nothing.
+ */
+function withPeople(known: Record<string, Person>, people: Person[]): Record<string, Person> {
+  const changed = people.filter((person) => {
+    const before = known[person.id];
+    return before?.name !== person.name || before.avatarUrl !== person.avatarUrl;
+  });
+  return changed.length === 0 ? known : { ...known, ...byKey(changed, (person) => person.id) };
+}
+
+/**
  * Folds one message from the server into this browser's copy of the room.
  * Changes arrive as the same events the server applied, and are applied here
  * by the same `evolve` — so the two copies cannot disagree about what a pause
@@ -49,7 +61,7 @@ export function receive(room: ClientRoom, message: ServerMessage): ClientRoom {
         you: message.t === "welcome" ? message.you : room.you,
         state: message.room.state,
         tracks: byKey(message.room.tracks, (track) => track.trackId),
-        people: { ...room.people, ...byKey(message.room.people, (person) => person.id) },
+        people: withPeople(room.people, message.room.people),
         activity: message.room.activity.slice(-FEED_LENGTH),
         listeners: message.listeners,
         behind: false,
@@ -62,7 +74,10 @@ export function receive(room: ClientRoom, message: ServerMessage): ClientRoom {
       return {
         ...room,
         state: commit(room.state, message.events),
-        tracks: { ...room.tracks, ...byKey(message.tracks, (track) => track.trackId) },
+        tracks:
+          message.tracks.length === 0
+            ? room.tracks
+            : { ...room.tracks, ...byKey(message.tracks, (track) => track.trackId) },
         activity:
           message.activity === null
             ? room.activity
@@ -74,7 +89,7 @@ export function receive(room: ClientRoom, message: ServerMessage): ClientRoom {
       return {
         ...room,
         listeners: message.listeners,
-        people: { ...room.people, ...byKey(message.people, (person) => person.id) },
+        people: withPeople(room.people, message.people),
       };
 
     case "pong":

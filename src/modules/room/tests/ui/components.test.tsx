@@ -13,6 +13,7 @@ import { SeekBar } from "@/modules/room/ui/SeekBar.tsx";
 import { SyncNotice } from "@/modules/room/ui/SyncNotice.tsx";
 import { TransportControls } from "@/modules/room/ui/TransportControls.tsx";
 import { UpNextList, type QueueRow } from "@/modules/room/ui/UpNextList.tsx";
+import { UpNextRow } from "@/modules/room/ui/UpNextRow.tsx";
 import { trackInfo } from "@/modules/room/tests/support/fakes.ts";
 
 const people = {
@@ -322,12 +323,10 @@ describe("ListenerList", () => {
 });
 
 describe("UpNextList", () => {
-  /**
-   * The page re-renders twice a second to move the clock. Re-rendering a full
-   * room's 5000 rows each time blocked the page for 5 s in every 8.
-   */
-  test("is memoised, so the clock's ticks do not re-render the whole queue", () => {
+  /** Re-rendering a full room's 5000 rows on every room change blocks the page for seconds. */
+  test("is memoised, and so is each of its rows", () => {
     expect((UpNextList as unknown as { $$typeof: symbol }).$$typeof).toBe(Symbol.for("react.memo"));
+    expect((UpNextRow as unknown as { $$typeof: symbol }).$$typeof).toBe(Symbol.for("react.memo"));
   });
 
   test("numbers the rows in play order and names each song's artist", () => {
@@ -345,9 +344,18 @@ describe("UpNextList", () => {
       />,
     );
 
-    expect(html).toContain('<span class="row__n" aria-hidden="true">1</span>');
-    expect(html).toContain('<span class="row__n" aria-hidden="true">2</span>');
+    expect(html).toContain('<ol class="queue queue--numbered">');
+    expect(html.indexOf("Song a1")).toBeLessThan(html.indexOf("Song b1"));
     expect(html).toContain('<span class="row__artist">Artist</span>');
+  });
+
+  /** The numbers are the list's own counter: a row keeps no place of its own to redraw. */
+  test("numbers its rows from the stylesheet's counter", async () => {
+    const css = await Bun.file("src/app/room/room.css").text();
+
+    expect(css).toMatch(/\.queue--numbered \{\s*counter-reset: row;/);
+    expect(css).toMatch(/\.queue--numbered \.row \{\s*counter-increment: row;/);
+    expect(css).toMatch(/\.queue--numbered \.row__n::before \{\s*content: counter\(row\);/);
   });
 
   test("lists songs in play order, each in its owner's colour", () => {
@@ -452,6 +460,7 @@ describe("UpNextList", () => {
     expect(html).not.toContain("Songs play in the order they were added.");
     expect(html).toContain('<span class="row__n" aria-hidden="true"></span>');
     expect(html).not.toContain('<span class="row__n" aria-hidden="true">1</span>');
+    expect(html).toContain('<ol class="queue">');
   });
 
   describe("Stars", () => {
@@ -508,7 +517,7 @@ describe("UpNextList", () => {
       expect(html).not.toContain("row__star");
       expect(html).not.toContain('aria-label="Play ');
       expect(html).toContain('aria-label="Move Song b1 earlier in the queue"');
-      expect(html).toContain('<span class="row__n" aria-hidden="true">2</span>');
+      expect(html).toContain('<ol class="queue queue--numbered">');
     });
   });
 

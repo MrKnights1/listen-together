@@ -158,7 +158,8 @@ export function RoomPage({ me }: { me: SessionUser }) {
           },
         ];
       }),
-    [state, tracks],
+    // Not `state`: pausing, seeking or starring changes it but none of the rows.
+    [state.queue, state.entries, tracks],
   );
 
   const seekPosition = useCallback(

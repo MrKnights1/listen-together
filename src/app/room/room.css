@@ -711,6 +711,19 @@
   text-align: right;
 }
 
+/* Numbered here rather than by each row, which would then redraw whenever the line moves up. */
+.queue--numbered {
+  counter-reset: row;
+}
+
+.queue--numbered .row {
+  counter-increment: row;
+}
+
+.queue--numbered .row__n::before {
+  content: counter(row);
+}
+
 /* A starred song's place in the line that plays before the random draw: star over number. */
 .row__star {
   display: grid;

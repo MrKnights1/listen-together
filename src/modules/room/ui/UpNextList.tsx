@@ -1,11 +1,10 @@
-import { memo, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Person } from "@/modules/room/contract/messages.ts";
 import type { TrackInfo } from "@/modules/room/domain/TrackInfo.ts";
 import { ConfirmDialog } from "@/shared/ui/ConfirmDialog.tsx";
 import { Icon } from "@/shared/ui/Icon.tsx";
-import { OwnerChip } from "./OwnerChip.tsx";
-import { ownerColor } from "./ownerColor.ts";
-import { clearQuestion, formatDuration, songs } from "./wording.ts";
+import { UpNextRow } from "./UpNextRow.tsx";
+import { clearQuestion, songs } from "./wording.ts";
 
 export interface QueueRow {
   entryId: string;
@@ -37,8 +36,9 @@ function orderNote(shuffle: boolean, anyStarred: boolean): string {
 }
 
 /**
- * Memoised: the page re-renders twice a second to move the clock, and a full
- * room is 5000 rows. The list only re-renders when the queue or people change.
+ * Memoised, and so is each row: a full room is 5000 rows. Pausing, seeking or
+ * a listener's status changing redraws none of them; a starred song redraws
+ * only the rows whose place changed.
  */
 export const UpNextList = memo(function UpNextList({
   rows,
@@ -69,6 +69,18 @@ export const UpNextList = memo(function UpNextList({
   onClear: (addedUpTo: number) => void;
 }) {
   const [clearing, setClearing] = useState<ClearRequest | null>(null);
+  // Read when a move is clicked, so no row has to carry its place in the line.
+  const rowsRef = useRef(rows);
+  useEffect(() => {
+    rowsRef.current = rows;
+  }, [rows]);
+  const moveBy = useCallback(
+    (entryId: string, by: -1 | 1) => {
+      const at = rowsRef.current.findIndex((row) => row.entryId === entryId);
+      if (at !== -1) onMove(entryId, at + by);
+    },
+    [onMove],
+  );
   /** Each starred entry's place in the starred line, from 1. */
   const starPlaces = useMemo(
     () => new Map(starred.map((entryId, index) => [entryId, index + 1])),
@@ -119,98 +131,24 @@ export const UpNextList = memo(function UpNextList({
       {rows.length === 0 ? (
         <p className="empty">Nothing queued. Paste a link to add the next song.</p>
       ) : (
-        <ol className="queue">
-          {rows.map((row, index) => {
-            const title = row.track?.title ?? "Unknown song";
-            const owner = people[row.ownerId];
-            const starPlace = starPlaces.get(row.entryId);
-            return (
-              <li
-                key={row.entryId}
-                className="row"
-                style={{ "--owner": ownerColor(row.ownerId) } as React.CSSProperties}
-              >
-                <span className="row__n" aria-hidden="true">
-                  {!shuffle ? (
-                    index + 1
-                  ) : starPlace === undefined ? null : (
-                    <span className="row__star">
-                      <Icon name="star-filled" />
-                      {starPlace}
-                    </span>
-                  )}
-                </span>
-                {row.track?.artworkUrl ? (
-                  <img
-                    className="row__art"
-                    src={row.track.artworkUrl}
-                    alt=""
-                    width={64}
-                    height={36}
-                    loading="lazy"
-                  />
-                ) : (
-                  <span className="row__art" aria-hidden="true" />
-                )}
-                <span className="row__text">
-                  <span className="row__title">{title}</span>
-                  {row.track !== undefined && (
-                    <span className="row__artist">{row.track.artist}</span>
-                  )}
-                </span>
-                <span className="row__meta">
-                  <OwnerChip ownerId={row.ownerId} person={owner} />
-                  <span className="row__len">{formatDuration(row.durationMs)}</span>
-                </span>
-                <span className="row__actions">
-                  {shuffle ? (
-                    <button
-                      type="button"
-                      className="icon-button"
-                      aria-label={`Play ${title} next`}
-                      aria-pressed={starPlace !== undefined}
-                      title={starPlace === undefined ? "Play next" : "Unstar"}
-                      onClick={() => onStar(row.entryId, starPlace === undefined)}
-                    >
-                      <Icon name={starPlace === undefined ? "star" : "star-filled"} />
-                    </button>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        className="icon-button"
-                        disabled={index === 0}
-                        aria-label={`Move ${title} earlier in the queue`}
-                        title="Move earlier"
-                        onClick={() => onMove(row.entryId, index - 1)}
-                      >
-                        <Icon name="up" />
-                      </button>
-                      <button
-                        type="button"
-                        className="icon-button"
-                        disabled={index === rows.length - 1}
-                        aria-label={`Move ${title} later in the queue`}
-                        title="Move later"
-                        onClick={() => onMove(row.entryId, index + 1)}
-                      >
-                        <Icon name="down" />
-                      </button>
-                    </>
-                  )}
-                  <button
-                    type="button"
-                    className="icon-button"
-                    aria-label={`Remove ${title} from the queue`}
-                    title="Remove"
-                    onClick={() => onRemove(row.entryId)}
-                  >
-                    <Icon name="remove" />
-                  </button>
-                </span>
-              </li>
-            );
-          })}
+        <ol className={shuffle ? "queue" : "queue queue--numbered"}>
+          {rows.map((row, index) => (
+            <UpNextRow
+              key={row.entryId}
+              entryId={row.entryId}
+              ownerId={row.ownerId}
+              owner={people[row.ownerId]}
+              track={row.track}
+              durationMs={row.durationMs}
+              first={index === 0}
+              last={index === rows.length - 1}
+              shuffle={shuffle}
+              starPlace={starPlaces.get(row.entryId)}
+              onMove={moveBy}
+              onStar={onStar}
+              onRemove={onRemove}
+            />
+          ))}
         </ol>
       )}
     </section>

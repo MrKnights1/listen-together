@@ -4,7 +4,7 @@ import { decide } from "@/modules/room/domain/decide.ts";
 import { commit } from "@/modules/room/domain/evolve.ts";
 import { emptyRoom, type RoomState } from "@/modules/room/domain/RoomState.ts";
 import { emptyClientRoom, receive, type ClientRoom } from "@/modules/room/ui/clientRoom.ts";
-import { context, songs } from "@/modules/room/tests/support/room.ts";
+import { apply, context, songs } from "@/modules/room/tests/support/room.ts";
 import { trackInfo } from "@/modules/room/tests/support/fakes.ts";
 
 function snapshot(state: RoomState = emptyRoom()): RoomSnapshot {
@@ -128,5 +128,53 @@ describe("receive", () => {
     expect(next.people["bob"]?.name).toBe("Bob");
     expect(next.people["ada"]?.name).toBe("Ada");
     expect(next.listeners).toHaveLength(1);
+  });
+});
+
+/** What a page draws from is kept as the same object when a message changed none of it. */
+describe("receive keeps what did not change", () => {
+  const ada = {
+    id: "ada",
+    name: "Ada",
+    avatarUrl: "https://cdn.discordapp.com/embed/avatars/0.png",
+  };
+
+  function playing(): ClientRoom {
+    return welcomed(apply(emptyRoom(), { type: "add", ownerId: "ada", tracks: songs("ada", 3) }));
+  }
+
+  test("a pause keeps the songs, the entries and the queue as they were", () => {
+    const room = playing();
+    const current = room.state.current;
+    if (current === null) throw new Error("expected a song playing");
+    const pause = eventFor(room.state, { type: "pause", entryId: current.entryId });
+
+    const next = receive(room, { ...pause, tracks: [] } as ServerMessage);
+
+    expect(next.state.current?.status).toBe("paused");
+    expect(next.tracks).toBe(room.tracks);
+    expect(next.state.entries).toBe(room.state.entries);
+    expect(next.state.queue).toBe(room.state.queue);
+  });
+
+  test("a listener list naming the same people keeps the people", () => {
+    const room = playing();
+
+    const next = receive(room, { t: "listeners", listeners: [], people: [ada] });
+
+    expect(next.people).toBe(room.people);
+  });
+
+  test("someone's new name or picture does reach the page", () => {
+    const room = playing();
+
+    const next = receive(room, {
+      t: "listeners",
+      listeners: [],
+      people: [{ ...ada, name: "Ada L." }],
+    });
+
+    expect(next.people).not.toBe(room.people);
+    expect(next.people["ada"]?.name).toBe("Ada L.");
   });
 });
