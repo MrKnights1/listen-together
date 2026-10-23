@@ -27,8 +27,9 @@ export interface SyncedPlayerState {
 }
 
 /**
- * Runs the sync loop for the room page. `target` is read on every tick, so it
- * may close over the latest room state without restarting anything.
+ * Runs the sync loop for the room page. `target` is read on every tick and
+ * after every render, so it may close over the latest room state without
+ * restarting anything.
  */
 export function useSyncedPlayer({
   hostRef,
@@ -82,6 +83,11 @@ export function useSyncedPlayer({
       playerRef.current = null;
     };
   }, [hostRef]);
+
+  // Every render may carry a new room state; the player ignores those that change nothing.
+  useEffect(() => {
+    playerRef.current?.roomChanged();
+  });
 
   useEffect(() => {
     if (listening) setAutoplayBlocked(false);

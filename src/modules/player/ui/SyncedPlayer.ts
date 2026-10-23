@@ -9,6 +9,10 @@ import {
   type Target,
 } from "./reconcile.ts";
 
+/** What the room is asking for, as far as following it goes: a new value is a new instruction. */
+const instructionOf = (target: Target | null): string | null =>
+  target === null ? null : `${target.providerTrackId}|${target.playing}|${target.setAt}`;
+
 /** Creates a provider's player. One per provider, made the first time a song of theirs plays. */
 export type AdapterFactory = (provider: ProviderId, events: PlayerEvents) => Promise<PlayerAdapter>;
 
@@ -44,6 +48,8 @@ export class SyncedPlayer {
   private reported: { status: SyncStatus; errorCode: number | null } | null = null;
   private reportedPlaying = false;
   private destroyed = false;
+  /** The instruction the last tick acted on. */
+  private followed: string | null = null;
 
   constructor(private readonly options: SyncedPlayerOptions) {}
 
@@ -67,11 +73,22 @@ export class SyncedPlayer {
     this.tick();
   }
 
+  /**
+   * The room may have changed: a pause, skip or jump is followed now rather
+   * than on the next tick. Anything else (drift) is left to the ticks.
+   */
+  roomChanged(): void {
+    if (this.destroyed) return;
+    const target = this.options.target(this.options.now());
+    if (instructionOf(target) !== this.followed) this.tick();
+  }
+
   /** One step: read the room and the player, decide, act. */
   tick(): void {
     if (this.destroyed) return;
     const now = this.options.now();
     const target = this.options.target(now);
+    this.followed = instructionOf(target);
 
     if (target !== null && this.listening && !this.ready(target.provider)) {
       this.ensureAdapter(target.provider);

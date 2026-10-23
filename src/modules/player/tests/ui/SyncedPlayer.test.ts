@@ -70,6 +70,27 @@ describe("SyncedPlayer", () => {
     expect(adapters[0]?.muted).toBe(true);
   });
 
+  test("follows a pause the moment the room says so, without waiting for a tick", async () => {
+    player.setListening(true);
+    await settle();
+    target = { ...(target as Target), playing: false, positionMs: 10_500, setAt: 5_000 };
+
+    player.roomChanged();
+
+    expect(adapters[0]?.calls).toEqual(["load song1 @10500 play", "pause"]);
+  });
+
+  test("leaves drift to the ticks when the room's instruction has not changed", async () => {
+    player.setListening(true);
+    await settle();
+    const adapter = adapters[0] as FakeAdapter;
+    adapter.current.positionMs = 60_000;
+
+    player.roomChanged();
+
+    expect(adapter.calls).toEqual(["load song1 @10500 play"]);
+  });
+
   test("follows the room to the next song", async () => {
     player.setListening(true);
     await settle();
