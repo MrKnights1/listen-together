@@ -157,6 +157,10 @@ export function RoomPage({ me }: { me: SessionUser }) {
     [control],
   );
 
+  const upNextTrackIds = useMemo(
+    () => new Set(state.queue.flatMap((entryId) => state.entries[entryId]?.trackId ?? [])),
+    [state.queue, state.entries],
+  );
   const rows = useMemo<QueueRow[]>(
     () =>
       state.queue.flatMap((entryId) => {
@@ -306,6 +310,8 @@ export function RoomPage({ me }: { me: SessionUser }) {
             played={state.played}
             tracks={tracks}
             people={people}
+            upNext={upNextTrackIds}
+            playingTrackId={currentEntry?.trackId ?? null}
             onAddAgain={addAgain}
           />
           <ActivityFeed activity={room.activity} people={people} />

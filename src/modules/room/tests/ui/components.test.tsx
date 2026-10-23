@@ -266,7 +266,14 @@ describe("RecentlyPlayed", () => {
 
   test("says so before anything has played", () => {
     const html = renderToStaticMarkup(
-      <RecentlyPlayed played={[]} tracks={{}} people={people} onAddAgain={addAgain} />,
+      <RecentlyPlayed
+        played={[]}
+        tracks={{}}
+        people={people}
+        upNext={new Set()}
+        playingTrackId={null}
+        onAddAgain={addAgain}
+      />,
     );
 
     expect(html).toContain("Recently played");
@@ -275,7 +282,14 @@ describe("RecentlyPlayed", () => {
 
   test("lists the songs newest first, with who queued each and when it played", () => {
     const html = renderToStaticMarkup(
-      <RecentlyPlayed played={played} tracks={tracks} people={people} onAddAgain={addAgain} />,
+      <RecentlyPlayed
+        played={played}
+        tracks={tracks}
+        people={people}
+        upNext={new Set()}
+        playingTrackId={null}
+        onAddAgain={addAgain}
+      />,
     );
 
     expect(html.indexOf("Song two")).toBeLessThan(html.indexOf("Song one"));
@@ -285,12 +299,37 @@ describe("RecentlyPlayed", () => {
 
   test("offers to add each song again, naming it", () => {
     const html = renderToStaticMarkup(
-      <RecentlyPlayed played={played} tracks={tracks} people={people} onAddAgain={addAgain} />,
+      <RecentlyPlayed
+        played={played}
+        tracks={tracks}
+        people={people}
+        upNext={new Set()}
+        playingTrackId={null}
+        onAddAgain={addAgain}
+      />,
     );
 
     expect(html).toContain('aria-label="Add Song two again"');
     expect(html).toContain('aria-label="Add Song one again"');
     expect(html.match(/title="Add again"/g)).toHaveLength(2);
+  });
+
+  /** On repeat-all every song that played is back in Up next: adding it would add nothing. */
+  test("says a song is in Up next, and offers no add, when it is coming up anyway", () => {
+    const html = renderToStaticMarkup(
+      <RecentlyPlayed
+        played={played}
+        tracks={tracks}
+        people={people}
+        upNext={new Set(["youtube:one"])}
+        playingTrackId="youtube:two"
+        onAddAgain={addAgain}
+      />,
+    );
+
+    expect(html).toContain('<span class="recent__state">In Up next</span>');
+    expect(html).toContain('<span class="recent__state">Playing</span>');
+    expect(html).not.toContain("again");
   });
 
   test("offers nothing to add for a song whose details are gone", () => {
@@ -299,6 +338,8 @@ describe("RecentlyPlayed", () => {
         played={[{ trackId: "youtube:lost", ownerId: "ada", at: 0 }]}
         tracks={{}}
         people={people}
+        upNext={new Set()}
+        playingTrackId={null}
         onAddAgain={addAgain}
       />,
     );

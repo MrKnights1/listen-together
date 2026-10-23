@@ -6,16 +6,25 @@ import { Icon } from "@/shared/ui/Icon.tsx";
 import { OwnerChip } from "./OwnerChip.tsx";
 import { clockTime } from "./wording.ts";
 
-/** The songs the room moved on from, newest first, each one click from being queued again. */
+/**
+ * The songs the room moved on from, newest first, each one click from being
+ * queued again — unless it is coming up anyway, as every song is on
+ * repeat-all: adding it would add nothing, so that is said instead.
+ */
 export const RecentlyPlayed = memo(function RecentlyPlayed({
   played,
   tracks,
   people,
+  upNext,
+  playingTrackId,
   onAddAgain,
 }: {
   played: PlayedSong[];
   tracks: Record<string, TrackInfo>;
   people: Record<string, Person>;
+  /** The songs in Up next, by track id, whoever queued them. */
+  upNext: ReadonlySet<string>;
+  playingTrackId: string | null;
   /** Queues the song in this listener's own list; resolves to what that did, in words. */
   onAddAgain: (track: TrackInfo) => Promise<string>;
 }) {
@@ -61,17 +70,23 @@ export const RecentlyPlayed = memo(function RecentlyPlayed({
                     </time>
                   </span>
                 </span>
-                {track !== undefined && (
-                  <button
-                    type="button"
-                    className="icon-button recent__add"
-                    disabled={adding}
-                    aria-label={`Add ${title} again`}
-                    title="Add again"
-                    onClick={() => void addAgain(track)}
-                  >
-                    <Icon name="plus" />
-                  </button>
+                {song.trackId === playingTrackId ? (
+                  <span className="recent__state">Playing</span>
+                ) : upNext.has(song.trackId) ? (
+                  <span className="recent__state">In Up next</span>
+                ) : (
+                  track !== undefined && (
+                    <button
+                      type="button"
+                      className="icon-button recent__add"
+                      disabled={adding}
+                      aria-label={`Add ${title} again`}
+                      title="Add again"
+                      onClick={() => void addAgain(track)}
+                    >
+                      <Icon name="plus" />
+                    </button>
+                  )
                 )}
               </li>
             );

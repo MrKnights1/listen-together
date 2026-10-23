@@ -191,13 +191,24 @@ test("two listeners hear the same moment, and each one's controls reach the othe
       await expect(queued(page)).toHaveCount(0);
     }
 
-    await bob.getByRole("button", { name: `Add ${first.title} again` }).click();
+    const addAgain = (page: Page) => page.getByRole("button", { name: `Add ${first.title} again` });
+    const state = (page: Page) => page.locator(".recent__row").first().locator(".recent__state");
+
+    await addAgain(bob).click();
     await expect(bob.locator(".recent__result")).toHaveText("Added 1 song to your list.");
-    for (const page of [ada, bob]) await expect(queued(page)).toHaveCount(1);
+    // Coming up now, as on repeat-all: adding it again would add nothing, so no + is offered.
+    for (const page of [ada, bob]) {
+      await expect(queued(page)).toHaveCount(1);
+      await expect(state(page)).toHaveText("In Up next");
+      await expect(addAgain(page)).toHaveCount(0);
+    }
 
     // Back as it was: the next step queues this very song for Bob.
     await bob.getByRole("button", { name: `Remove ${first.title} from the queue` }).click();
-    for (const page of [ada, bob]) await expect(queued(page)).toHaveCount(0);
+    for (const page of [ada, bob]) {
+      await expect(queued(page)).toHaveCount(0);
+      await expect(addAgain(page)).toHaveCount(1);
+    }
   });
 
   await test.step("one clears the queue after saying yes, and it empties for both", async () => {
