@@ -15,7 +15,7 @@ export const MAX_ROOM_ENTRIES = 5000;
 export const TRACK_END_GRACE_MS = 1000;
 
 /** How many songs Recently played remembers. */
-export const RECENTLY_PLAYED = 25;
+export const RECENTLY_PLAYED = 5;
 
 /** A song skipped sooner than this was not heard, and is not remembered as played. */
 export const MIN_PLAYED_MS = 30_000;
