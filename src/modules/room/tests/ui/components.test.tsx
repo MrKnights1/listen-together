@@ -9,6 +9,7 @@ import { ListenerList } from "@/modules/room/ui/ListenerList.tsx";
 import { NowPlaying } from "@/modules/room/ui/NowPlaying.tsx";
 import { PlaylistChoice } from "@/modules/room/ui/PlaylistChoice.tsx";
 import { SeekBar } from "@/modules/room/ui/SeekBar.tsx";
+import { SyncNotice } from "@/modules/room/ui/SyncNotice.tsx";
 import { TransportControls } from "@/modules/room/ui/TransportControls.tsx";
 import { UpNextList, type QueueRow } from "@/modules/room/ui/UpNextList.tsx";
 import { trackInfo } from "@/modules/room/tests/support/fakes.ts";
@@ -168,6 +169,31 @@ describe("ListenButton", () => {
   });
 });
 
+describe("SyncNotice", () => {
+  const notice = (status: Parameters<typeof SyncNotice>[0]["status"]) =>
+    renderToStaticMarkup(<SyncNotice listening status={status} errorCode={null} onResync={noop} />);
+
+  test("says YouTube's player didn't load, and offers to try again", () => {
+    const html = notice("no_player");
+
+    expect(html).toContain("sync--no_player");
+    expect(html).toContain("YouTube&#x27;s player didn&#x27;t load");
+    expect(html).toContain("Try again");
+  });
+
+  test("offers nothing to try while the player is only catching up", () => {
+    expect(notice("catching_up")).not.toContain("Try again");
+  });
+
+  test("shows nothing to someone not listening", () => {
+    expect(
+      renderToStaticMarkup(
+        <SyncNotice listening={false} status="no_player" errorCode={null} onResync={noop} />,
+      ),
+    ).toBe("");
+  });
+});
+
 describe("ArtworkGlow", () => {
   test("blurs the song's artwork behind now playing, hidden from assistive technology", () => {
     const html = renderToStaticMarkup(<ArtworkGlow artworkUrl="https://i.ytimg.com/vi/x/mq.jpg" />);
@@ -210,6 +236,19 @@ describe("ListenerList", () => {
     expect(html).toContain("In sync");
     expect(html).toContain("face__dot--away");
     expect(html).toContain("Here, not listening");
+  });
+
+  test("says when someone's browser could not load YouTube's player", () => {
+    const html = renderToStaticMarkup(
+      <ListenerList
+        listeners={[{ userId: "bob", listening: true, sync: "no_player", errorCode: null }]}
+        people={people}
+        you="ada"
+      />,
+    );
+
+    expect(html).toContain("listener__state--no_player");
+    expect(html).toContain("YouTube&#x27;s player didn&#x27;t load");
   });
 });
 

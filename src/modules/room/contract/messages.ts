@@ -21,7 +21,14 @@ export const MAX_ID_LENGTH = 64;
 export const MAX_POSITION_MS = 86_400_000;
 
 /** How a listener's player is doing, as their browser reports it. */
-export type SyncStatus = "idle" | "in_sync" | "catching_up" | "out_of_sync" | "error";
+export type SyncStatus =
+  | "idle"
+  | "in_sync"
+  | "catching_up"
+  | "out_of_sync"
+  | "error"
+  /** The provider's player itself could not be loaded on this page. */
+  | "no_player";
 
 export interface ListenerView {
   userId: string;

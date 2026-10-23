@@ -1,11 +1,14 @@
 import type { PlayerAdapter, PlayerEvents, PlayerState } from "../PlayerAdapter.ts";
-import type { YTNamespace, YTPlayer } from "./iframeApi.ts";
+import type { After, YTNamespace, YTPlayer } from "./iframeApi.ts";
 
 /**
  * The tile is 200×200: YouTube's minimum embedded viewport. Audio is what the
  * room is for, but the player must stay visible at at least this size.
  */
 export const PLAYER_SIZE_PX = 200;
+
+/** A player that has not said it is ready by then never will. */
+export const PLAYER_READY_TIMEOUT_MS = 20_000;
 
 const STATES: Record<number, PlayerState> = {
   [-1]: "unstarted",
@@ -23,24 +26,29 @@ export class YouTubeIframeAdapter implements PlayerAdapter {
   /**
    * Creates the player in `mount` and resolves once it takes commands. Our
    * own buttons drive it: no YouTube controls, no keyboard shortcuts of its
-   * own, inline on phones.
+   * own, inline on phones. Rejects, and takes the player down, if it never
+   * gets ready.
    */
   static create(
     api: YTNamespace,
     mount: HTMLElement,
     origin: string,
     events: PlayerEvents,
+    after: After,
   ): Promise<YouTubeIframeAdapter> {
-    return new Promise((resolve) => {
-      let adapter: YouTubeIframeAdapter | null = null;
+    return new Promise((resolve, reject) => {
+      const cancel = after(PLAYER_READY_TIMEOUT_MS, () => {
+        player.destroy();
+        reject(new Error("YouTube's player did not get ready in time."));
+      });
       const player = new api.Player(mount, {
         width: PLAYER_SIZE_PX,
         height: PLAYER_SIZE_PX,
         playerVars: { controls: 0, disablekb: 1, playsinline: 1, rel: 0, enablejsapi: 1, origin },
         events: {
           onReady: () => {
-            adapter = new YouTubeIframeAdapter(player);
-            resolve(adapter);
+            cancel();
+            resolve(new YouTubeIframeAdapter(player));
           },
           onStateChange: (event) => events.onStateChange(STATES[event.data] ?? "unstarted"),
           onError: (event) => events.onError(event.data),

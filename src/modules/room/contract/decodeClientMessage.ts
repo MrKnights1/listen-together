@@ -15,6 +15,7 @@ const SYNC_STATUSES = new Set<SyncStatus>([
   "catching_up",
   "out_of_sync",
   "error",
+  "no_player",
 ]);
 const REPEAT_MODES = new Set(["off", "one", "all"]);
 const LINK_SCOPES = new Set(["song", "playlist"]);

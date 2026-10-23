@@ -39,6 +39,8 @@ export class SyncedPlayer {
   private adapter: PlayerAdapter | null = null;
   private provider: ProviderId | null = null;
   private creating: Promise<void> | null = null;
+  /** The last attempt to make the player failed: nothing tries again until the listener asks. */
+  private failed = false;
   private loadedTrackId: string | null = null;
   private error: number | null = null;
   private memory: SyncMemory = freshMemory();
@@ -56,6 +58,7 @@ export class SyncedPlayer {
   /** The listener pressed "Start listening" (or stopped). */
   setListening(listening: boolean): void {
     this.listening = listening;
+    if (listening) this.failed = false;
     this.tick();
   }
 
@@ -70,6 +73,7 @@ export class SyncedPlayer {
     this.memory = freshMemory();
     this.error = null;
     this.loadedTrackId = null;
+    this.failed = false;
     this.tick();
   }
 
@@ -91,8 +95,12 @@ export class SyncedPlayer {
     this.followed = instructionOf(target);
 
     if (target !== null && this.listening && !this.ready(target.provider)) {
-      this.ensureAdapter(target.provider);
-      this.report("catching_up", null);
+      if (this.failed) {
+        this.report("no_player", null);
+      } else {
+        this.ensureAdapter(target.provider);
+        this.report("catching_up", null);
+      }
       this.reportPlaying(false);
       return;
     }
@@ -153,6 +161,7 @@ export class SyncedPlayer {
         adapter.setAudio(this.volume, this.muted);
       })
       .catch((error: unknown) => {
+        this.failed = true;
         console.error("Creating the player failed", error);
       })
       .finally(() => {

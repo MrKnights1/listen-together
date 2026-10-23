@@ -11,6 +11,7 @@ describe("decodeClientMessage — accepted", () => {
     [{ t: "resync" }],
     [{ t: "presence", listening: true, sync: "in_sync", errorCode: null }],
     [{ t: "presence", listening: false, sync: "error", errorCode: 150 }],
+    [{ t: "presence", listening: true, sync: "no_player", errorCode: null }],
     [
       {
         t: "cmd",

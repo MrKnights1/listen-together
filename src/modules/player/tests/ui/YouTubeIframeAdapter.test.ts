@@ -1,13 +1,16 @@
 import { describe, expect, test } from "bun:test";
 import {
   IFRAME_API_SRC,
+  IFRAME_API_TIMEOUT_MS,
   loadYouTubeIframeApi,
+  type After,
   type IframeApiHost,
   type YTNamespace,
   type YTPlayer,
   type YTPlayerOptions,
 } from "@/modules/player/ui/youtube/iframeApi.ts";
 import {
+  PLAYER_READY_TIMEOUT_MS,
   PLAYER_SIZE_PX,
   YouTubeIframeAdapter,
 } from "@/modules/player/ui/youtube/YouTubeIframeAdapter.ts";
@@ -76,13 +79,38 @@ class FakeYTPlayer implements YTPlayer {
 const YT: YTNamespace = { Player: FakeYTPlayer };
 const mount = {} as HTMLElement;
 
+/** Timers that fire only when the test says so. */
+class ManualAfter {
+  readonly pending = new Map<number, { ms: number; run: () => void }>();
+  private nextId = 0;
+
+  readonly after: After = (ms, run) => {
+    const id = (this.nextId += 1);
+    this.pending.set(id, { ms, run });
+    return () => this.pending.delete(id);
+  };
+
+  fireAll(): void {
+    const due = [...this.pending.values()];
+    this.pending.clear();
+    for (const timer of due) timer.run();
+  }
+}
+
+const noEvents = {
+  onStateChange: () => undefined,
+  onError: () => undefined,
+  onAutoplayBlocked: () => undefined,
+};
+
 async function adapter(events: Partial<Parameters<typeof YouTubeIframeAdapter.create>[3]> = {}) {
-  const creating = YouTubeIframeAdapter.create(YT, mount, "https://music.example.com", {
-    onStateChange: () => undefined,
-    onError: () => undefined,
-    onAutoplayBlocked: () => undefined,
-    ...events,
-  });
+  const creating = YouTubeIframeAdapter.create(
+    YT,
+    mount,
+    "https://music.example.com",
+    { ...noEvents, ...events },
+    new ManualAfter().after,
+  );
   FakeYTPlayer.last?.options.events.onReady();
   return { adapter: await creating, yt: FakeYTPlayer.last as FakeYTPlayer };
 }
@@ -207,6 +235,41 @@ describe("YouTubeIframeAdapter", () => {
 
     expect(seen).toEqual([["state", "playing"], ["error", 150], ["blocked"]]);
   });
+
+  test("gives up, and takes the player down, when it never gets ready", async () => {
+    const timers = new ManualAfter();
+    const creating = YouTubeIframeAdapter.create(
+      YT,
+      mount,
+      "https://x.example",
+      noEvents,
+      timers.after,
+    );
+    const yt = FakeYTPlayer.last as FakeYTPlayer;
+
+    expect([...timers.pending.values()].map((timer) => timer.ms)).toEqual([
+      PLAYER_READY_TIMEOUT_MS,
+    ]);
+    timers.fireAll();
+
+    await expect(creating).rejects.toThrow("did not get ready in time");
+    expect(yt.calls).toContainEqual(["destroy"]);
+  });
+
+  test("stops watching the clock once the player is ready", async () => {
+    const timers = new ManualAfter();
+    const creating = YouTubeIframeAdapter.create(
+      YT,
+      mount,
+      "https://x.example",
+      noEvents,
+      timers.after,
+    );
+    FakeYTPlayer.last?.options.events.onReady();
+    await creating;
+
+    expect(timers.pending.size).toBe(0);
+  });
 });
 
 describe("loadYouTubeIframeApi", () => {
@@ -214,20 +277,24 @@ describe("loadYouTubeIframeApi", () => {
     const host: IframeApiHost = {};
     const scripts: string[] = [];
 
-    const first = loadYouTubeIframeApi(host, (src) => scripts.push(src));
-    const second = loadYouTubeIframeApi(host, (src) => scripts.push(src));
+    const timers = new ManualAfter();
+    const first = loadYouTubeIframeApi(host, (src) => scripts.push(src), timers.after);
+    const second = loadYouTubeIframeApi(host, (src) => scripts.push(src), timers.after);
     host.YT = YT;
     host.onYouTubeIframeAPIReady?.();
 
     expect(await first).toBe(YT);
     expect(await second).toBe(YT);
     expect(scripts).toEqual([IFRAME_API_SRC]);
+    expect(timers.pending.size).toBe(0);
   });
 
   test("uses the API straight away if the page already has it", async () => {
     const scripts: string[] = [];
 
-    expect(await loadYouTubeIframeApi({ YT }, (src) => scripts.push(src))).toBe(YT);
+    expect(
+      await loadYouTubeIframeApi({ YT }, (src) => scripts.push(src), new ManualAfter().after),
+    ).toBe(YT);
     expect(scripts).toEqual([]);
   });
 
@@ -235,11 +302,82 @@ describe("loadYouTubeIframeApi", () => {
     let called = false;
     const host: IframeApiHost = { onYouTubeIframeAPIReady: () => (called = true) };
 
-    const loading = loadYouTubeIframeApi(host, () => undefined);
+    const loading = loadYouTubeIframeApi(host, () => undefined, new ManualAfter().after);
     host.YT = YT;
     host.onYouTubeIframeAPIReady?.();
     await loading;
 
     expect(called).toBe(true);
+  });
+
+  test("fails when the script does not load, and a later call adds it again", async () => {
+    const host: IframeApiHost = {};
+    const failures: (() => void)[] = [];
+    const scripts: string[] = [];
+    const addScript = (src: string, onError: () => void) => {
+      scripts.push(src);
+      failures.push(onError);
+    };
+
+    const first = loadYouTubeIframeApi(host, addScript, new ManualAfter().after);
+    failures[0]?.();
+    await expect(first).rejects.toThrow("did not load");
+
+    const second = loadYouTubeIframeApi(host, addScript, new ManualAfter().after);
+    host.YT = YT;
+    host.onYouTubeIframeAPIReady?.();
+
+    expect(await second).toBe(YT);
+    expect(scripts).toEqual([IFRAME_API_SRC, IFRAME_API_SRC]);
+  });
+
+  test("fails cleanly even when the script reports its error at once", async () => {
+    const loading = loadYouTubeIframeApi({}, (_src, onError) => onError(), new ManualAfter().after);
+
+    await expect(loading).rejects.toThrow("did not load");
+  });
+
+  test("fails when the script never says it is ready, and puts the page's callback back", async () => {
+    const pageCallback = () => undefined;
+    const host: IframeApiHost = { onYouTubeIframeAPIReady: pageCallback };
+    const timers = new ManualAfter();
+
+    const loading = loadYouTubeIframeApi(host, () => undefined, timers.after);
+    expect([...timers.pending.values()].map((timer) => timer.ms)).toEqual([IFRAME_API_TIMEOUT_MS]);
+    timers.fireAll();
+
+    await expect(loading).rejects.toThrow("in time");
+    expect(host.onYouTubeIframeAPIReady).toBe(pageCallback);
+  });
+
+  test("clears a half-loaded YT, which would stop YouTube's script from running again", async () => {
+    // YouTube's script leaves `{ loading: 1 }` behind when its second file fails, and skips
+    // its whole setup while that is there.
+    const host = { YT: { loading: 1 } } as unknown as IframeApiHost;
+    const scripts: string[] = [];
+
+    const loading = loadYouTubeIframeApi(host, (src) => scripts.push(src), new ManualAfter().after);
+
+    expect(host.YT).toBeUndefined();
+    expect(scripts).toEqual([IFRAME_API_SRC]);
+    host.YT = YT;
+    host.onYouTubeIframeAPIReady?.();
+    expect(await loading).toBe(YT);
+  });
+
+  test("waits for the Player itself, not just the YT object", async () => {
+    const host: IframeApiHost = {};
+    const loading = loadYouTubeIframeApi(host, () => undefined, new ManualAfter().after);
+    let done = false;
+    void loading.then(() => (done = true));
+
+    host.YT = {} as YTNamespace;
+    host.onYouTubeIframeAPIReady?.();
+    await Promise.resolve();
+    expect(done).toBe(false);
+
+    host.YT = YT;
+    host.onYouTubeIframeAPIReady?.();
+    expect(await loading).toBe(YT);
   });
 });

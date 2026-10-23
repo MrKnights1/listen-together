@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, spyOn, test } from "bun:test";
+import { afterAll, afterEach, describe, expect, spyOn, test } from "bun:test";
 import type { Timers } from "@/shared/domain/Timers.ts";
 import { RecurringJob } from "@/shared/infrastructure/RecurringJob.ts";
 
@@ -39,6 +39,7 @@ function heldPasses() {
 
 const errors = spyOn(console, "error").mockImplementation(() => undefined);
 afterEach(() => errors.mockClear());
+afterAll(() => errors.mockRestore());
 
 describe("RecurringJob", () => {
   test("arms its schedule at once and does not hold the caller up for the first pass", async () => {

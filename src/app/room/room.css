@@ -104,7 +104,8 @@
 }
 
 .face__dot--out_of_sync,
-.face__dot--error {
+.face__dot--error,
+.face__dot--no_player {
   background: var(--danger);
 }
 
@@ -146,7 +147,8 @@
 }
 
 .listener__state--out_of_sync,
-.listener__state--error {
+.listener__state--error,
+.listener__state--no_player {
   color: var(--danger);
 }
 
@@ -202,7 +204,8 @@
 }
 
 .sync--out_of_sync,
-.sync--error {
+.sync--error,
+.sync--no_player {
   color: var(--danger);
 }
 

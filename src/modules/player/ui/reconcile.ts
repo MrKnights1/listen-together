@@ -25,7 +25,14 @@ export interface PlayerView {
   error: number | null;
 }
 
-export type SyncStatus = "idle" | "in_sync" | "catching_up" | "out_of_sync" | "error";
+export type SyncStatus =
+  | "idle"
+  | "in_sync"
+  | "catching_up"
+  | "out_of_sync"
+  | "error"
+  /** The provider's player itself could not be loaded on this page. */
+  | "no_player";
 
 export type PlayerAction =
   | { type: "load"; provider: ProviderId; providerTrackId: string; startMs: number; play: boolean }

@@ -17,7 +17,7 @@ export function SyncNotice({
     <p className={`sync sync--${status}`} role="status">
       <span className="sync__dot" aria-hidden="true" />
       {presenceLine(true, status, errorCode)}
-      {(status === "out_of_sync" || status === "error") && (
+      {(status === "out_of_sync" || status === "error" || status === "no_player") && (
         <button type="button" className="link-button" onClick={onResync}>
           Try again
         </button>

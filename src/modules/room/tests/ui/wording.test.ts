@@ -77,6 +77,7 @@ describe("wording", () => {
     expect(presenceLine(false, "idle", null)).toBe("Here, not listening");
     expect(presenceLine(true, "in_sync", null)).toBe("In sync");
     expect(presenceLine(true, "error", 150)).toBe("Can't play this song (YouTube error 150)");
+    expect(presenceLine(true, "no_player", null)).toBe("YouTube's player didn't load");
   });
 
   test("describes feed lines with the song's title as it was", () => {

@@ -88,6 +88,8 @@ export function presenceLine(
       return errorCode === null
         ? "Can't play this song"
         : `Can't play this song (YouTube error ${errorCode})`;
+    case "no_player":
+      return "YouTube's player didn't load";
     case "idle":
       return "Listening";
   }

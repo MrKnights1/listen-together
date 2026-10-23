@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, spyOn, test } from "bun:test";
 import type { SyncStatus, Target } from "@/modules/player/ui/reconcile.ts";
 import { SyncedPlayer } from "@/modules/player/ui/SyncedPlayer.ts";
 import { FakeAdapter } from "@/modules/player/tests/support/fakes.ts";
@@ -89,6 +89,46 @@ describe("SyncedPlayer", () => {
     player.roomChanged();
 
     expect(adapter.calls).toEqual(["load song1 @10500 play"]);
+  });
+
+  test("says the player didn't load, once, and tries again only when asked", async () => {
+    const errors = spyOn(console, "error").mockImplementation(() => undefined);
+    let attempts = 0;
+    let broken = true;
+    const failing = new SyncedPlayer({
+      createAdapter: async (_provider, events) => {
+        attempts += 1;
+        if (broken) throw new Error("YouTube's player script did not load.");
+        const adapter = new FakeAdapter(events);
+        adapters.push(adapter);
+        return adapter;
+      },
+      target: () => target,
+      now: () => now,
+      onStatus: (status, errorCode) => statuses.push([status, errorCode]),
+      onAutoplayBlocked: () => undefined,
+      onPlaying: () => undefined,
+    });
+
+    failing.setListening(true);
+    await settle();
+    failing.tick();
+    failing.tick();
+    await settle();
+
+    expect(attempts).toBe(1);
+    expect(statuses.at(-1)).toEqual(["no_player", null]);
+    expect(
+      errors.mock.calls.filter(([message]) => message === "Creating the player failed"),
+    ).toHaveLength(1);
+
+    broken = false;
+    failing.resync();
+    await settle();
+
+    expect(attempts).toBe(2);
+    expect(adapters[0]?.calls).toEqual(["load song1 @10500 play"]);
+    errors.mockRestore();
   });
 
   test("follows the room to the next song", async () => {
