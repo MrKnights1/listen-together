@@ -19,12 +19,16 @@ const KEPT = 8;
  */
 export class ClockSync {
   private samples: Sample[] = [];
+  private stale = false;
 
   /** `sentAt` and `receivedAt` are local monotonic times; `serverTime` is the server's epoch time. */
   record(sentAt: number, receivedAt: number, serverTime: number): void {
     const rttMs = receivedAt - sentAt;
     if (!Number.isFinite(rttMs) || rttMs < 0) return;
 
+    // A stale sample may have the shortest trip and so would outvote every fresh one.
+    if (this.stale) this.samples = [];
+    this.stale = false;
     this.samples.push({ rttMs, offsetMs: serverTime - (sentAt + rttMs / 2) });
     if (this.samples.length > KEPT) this.samples.shift();
   }
@@ -45,9 +49,12 @@ export class ClockSync {
     return localNow + best.offsetMs;
   }
 
-  /** Forgets everything, e.g. after a reconnect to a different server process. */
-  reset(): void {
-    this.samples = [];
+  /**
+   * The connection to the server dropped. The estimate stays in use, so the
+   * music plays on meanwhile; the first fresh sample replaces it.
+   */
+  markStale(): void {
+    this.stale = true;
   }
 
   private best(): Sample | null {

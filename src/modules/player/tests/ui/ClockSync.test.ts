@@ -42,12 +42,35 @@ describe("ClockSync", () => {
     expect(clock.synced).toBe(false);
   });
 
-  test("starts over after a reset", () => {
+  test("keeps telling the time on its old estimate once marked stale", () => {
     const clock = new ClockSync();
     clock.record(0, 10, 100);
 
-    clock.reset();
+    clock.markStale();
 
-    expect(clock.synced).toBe(false);
+    expect(clock.synced).toBe(true);
+    expect(clock.serverNow(1005)).toBe(1100);
+  });
+
+  test("lets the first fresh sample replace the stale ones, however slow its round trip", () => {
+    const clock = new ClockSync();
+    clock.record(0, 10, 100); // fast: offset 95
+    clock.markStale();
+
+    clock.record(1000, 1200, 2_000_100); // slow: offset 1_999_000
+
+    expect(clock.bestRttMs).toBe(200);
+    expect(clock.serverNow(3000)).toBe(2_002_000);
+  });
+
+  test("stays synced through a later sample once fresh again", () => {
+    const clock = new ClockSync();
+    clock.record(0, 10, 100);
+    clock.markStale();
+    clock.record(1000, 1200, 2_000_100);
+
+    clock.record(2000, 2010, 2_001_005); // fast again: offset 1_999_000
+
+    expect(clock.bestRttMs).toBe(10);
   });
 });

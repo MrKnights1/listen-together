@@ -61,8 +61,9 @@ export function useRoom(): RoomHandle {
       onPong: (sentAt, receivedAt, serverTime) =>
         clockRef.current.record(sentAt, receivedAt, serverTime),
       onState: (state) => {
-        // A new connection may be a new server process: its clock is measured afresh.
-        if (state === "reconnecting") clockRef.current.reset();
+        // A new server process runs on the same host's clock: keep the music going on the
+        // old estimate until the new connection has measured it again.
+        if (state === "reconnecting") clockRef.current.markStale();
         setConnection(state);
       },
     });
