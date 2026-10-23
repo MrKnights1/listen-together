@@ -9,6 +9,7 @@ import { ListenButton } from "@/modules/room/ui/ListenButton.tsx";
 import { ListenerList } from "@/modules/room/ui/ListenerList.tsx";
 import { NowPlaying } from "@/modules/room/ui/NowPlaying.tsx";
 import { PlaylistChoice } from "@/modules/room/ui/PlaylistChoice.tsx";
+import { RecentlyPlayed } from "@/modules/room/ui/RecentlyPlayed.tsx";
 import { SeekBar } from "@/modules/room/ui/SeekBar.tsx";
 import { SyncNotice } from "@/modules/room/ui/SyncNotice.tsx";
 import { TransportControls } from "@/modules/room/ui/TransportControls.tsx";
@@ -246,6 +247,64 @@ describe("AutoplayBlockedNotice", () => {
     expect(html).toContain("Your browser stopped the sound from starting");
     expect(html).toContain(`Press ${buttonText} again`);
     expect(html).toContain('role="status"');
+  });
+});
+
+describe("RecentlyPlayed", () => {
+  const addAgain = async () => "Added 1 song to your list.";
+  const tracks = { "youtube:one": trackInfo("one"), "youtube:two": trackInfo("two") };
+  const played = [
+    { trackId: "youtube:two", ownerId: "bob", at: Date.UTC(2026, 9, 23, 18, 5) },
+    { trackId: "youtube:one", ownerId: "ada", at: Date.UTC(2026, 9, 23, 18, 1) },
+  ];
+
+  test("is memoised: the room's other changes do not redraw it", () => {
+    expect((RecentlyPlayed as unknown as { $$typeof: symbol }).$$typeof).toBe(
+      Symbol.for("react.memo"),
+    );
+  });
+
+  test("says so before anything has played", () => {
+    const html = renderToStaticMarkup(
+      <RecentlyPlayed played={[]} tracks={{}} people={people} onAddAgain={addAgain} />,
+    );
+
+    expect(html).toContain("Recently played");
+    expect(html).toContain("Nothing has played yet.");
+  });
+
+  test("lists the songs newest first, with who queued each and when it played", () => {
+    const html = renderToStaticMarkup(
+      <RecentlyPlayed played={played} tracks={tracks} people={people} onAddAgain={addAgain} />,
+    );
+
+    expect(html.indexOf("Song two")).toBeLessThan(html.indexOf("Song one"));
+    expect(html.indexOf("Bob")).toBeLessThan(html.indexOf("Ada"));
+    expect(html).toContain(`dateTime="${new Date(played[0]?.at ?? 0).toISOString()}"`);
+  });
+
+  test("offers to add each song again, naming it", () => {
+    const html = renderToStaticMarkup(
+      <RecentlyPlayed played={played} tracks={tracks} people={people} onAddAgain={addAgain} />,
+    );
+
+    expect(html).toContain('aria-label="Add Song two again"');
+    expect(html).toContain('aria-label="Add Song one again"');
+    expect(html.match(/title="Add again"/g)).toHaveLength(2);
+  });
+
+  test("offers nothing to add for a song whose details are gone", () => {
+    const html = renderToStaticMarkup(
+      <RecentlyPlayed
+        played={[{ trackId: "youtube:lost", ownerId: "ada", at: 0 }]}
+        tracks={{}}
+        people={people}
+        onAddAgain={addAgain}
+      />,
+    );
+
+    expect(html).toContain("Unknown song");
+    expect(html).not.toContain("again");
   });
 });
 

@@ -61,6 +61,7 @@ const welcome: ServerMessage = {
       repeat: "off",
       shuffle: false,
       starred: [],
+      played: [],
     },
     tracks: [],
     activity: [],

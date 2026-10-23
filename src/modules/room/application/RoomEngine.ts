@@ -11,7 +11,7 @@ import { endsAt } from "@/modules/room/domain/playback.ts";
 import type { ActivityRepository } from "@/modules/room/domain/ports/ActivityRepository.ts";
 import type { Random } from "@/modules/room/domain/ports/Random.ts";
 import type { RoomRepository } from "@/modules/room/domain/ports/RoomRepository.ts";
-import { emptyRoom, type RoomState } from "@/modules/room/domain/RoomState.ts";
+import { emptyRoom, trackIdsInUse, type RoomState } from "@/modules/room/domain/RoomState.ts";
 import type { TrackInfo } from "@/modules/room/domain/TrackInfo.ts";
 import { SerialQueue } from "./SerialQueue.ts";
 
@@ -136,7 +136,7 @@ export class RoomEngine {
 
   /** Remembers the songs now in the room and forgets the ones that left. Returns the new ones. */
   private keepTracks(state: RoomState, incoming: Map<string, TrackInfo>): TrackInfo[] {
-    const inRoom = new Set(Object.values(state.entries).map((entry) => entry.trackId));
+    const inRoom = new Set(trackIdsInUse(state));
     const added: TrackInfo[] = [];
 
     for (const trackId of inRoom) {

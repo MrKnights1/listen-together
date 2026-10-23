@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import type { ActivityRepository } from "@/modules/room/domain/ports/ActivityRepository.ts";
 import type { RoomRepository } from "@/modules/room/domain/ports/RoomRepository.ts";
 import { emptyRoom } from "@/modules/room/domain/RoomState.ts";
-import { apply, songs } from "./room.ts";
+import { apply, NOW, songs } from "./room.ts";
 
 /** Run against SQLite and the in-memory fakes, so the fakes cannot drift. */
 export function runRoomRepositoryContracts(
@@ -25,6 +25,12 @@ export function runRoomRepositoryContracts(
       state = apply(state, { type: "repeat", mode: "all" });
       state = apply(state, { type: "set_shuffle", on: true });
       state = apply(state, { type: "star", entryId: state.queue[2] as string, on: true });
+      state = apply(
+        state,
+        { type: "skip", entryId: state.current?.entryId as string },
+        NOW + 60_000,
+      );
+      expect(state.played).toHaveLength(1);
 
       await rooms.save(state, 1234, false);
 

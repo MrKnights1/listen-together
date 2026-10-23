@@ -4,3 +4,4 @@
  * the server surface and reaches `bun:sqlite` — never allowed in a bundle.
  */
 export { offersPlaylistChoice } from "@/modules/catalog/domain/LinkScope.ts";
+export { songLinkOf } from "@/modules/catalog/domain/songLink.ts";

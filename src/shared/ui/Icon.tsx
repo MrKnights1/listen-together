@@ -96,6 +96,7 @@ const GLYPHS = {
     </g>
   ),
   check: <path {...STROKE} strokeWidth={2.4} d="M20 6 9 17l-5-5" />,
+  plus: <path {...STROKE} d="M12 5v14M5 12h14" />,
   alert: (
     <g {...STROKE}>
       <circle cx="12" cy="12" r="9.5" />

@@ -113,6 +113,20 @@ describe("RoomEngine", () => {
     expect(engine.snapshot().tracks.map((track) => track.trackId)).toEqual(["youtube:two"]);
   });
 
+  test("keeps what it knew about a song that played, for Recently played", async () => {
+    await add("ada", "one", "two");
+    clock.set(NOW + 60_000);
+    await engine.execute({ type: "skip", entryId: "ada-one" }, "ada", []);
+
+    expect(engine.snapshot().state.played.map((song) => song.trackId)).toEqual(["youtube:one"]);
+    expect(
+      engine
+        .snapshot()
+        .tracks.map((track) => track.trackId)
+        .sort(),
+    ).toEqual(["youtube:one", "youtube:two"]);
+  });
+
   test("applies concurrent commands one after the other", async () => {
     await add("ada", "one", "two", "three");
 

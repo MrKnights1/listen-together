@@ -62,6 +62,7 @@ describe("SqliteRoomRepository", () => {
       repeat: "all",
       shuffle: false,
       starred: [],
+      played: [],
     });
   });
 
@@ -76,7 +77,7 @@ describe("SqliteRoomRepository", () => {
 
     const loaded = await new SqliteRoomRepository(db).load();
 
-    expect(loaded?.state).toEqual({ ...saved, shuffle: false, starred: [] });
+    expect(loaded?.state).toEqual({ ...saved, shuffle: false, starred: [], played: [] });
   });
 
   /** Saved before songs could be starred: no `starred` at all, and none were. */
@@ -99,7 +100,56 @@ describe("SqliteRoomRepository", () => {
 
     const loaded = await new SqliteRoomRepository(db).load();
 
-    expect(loaded?.state).toEqual({ ...saved, starred: [] });
+    expect(loaded?.state).toEqual({ ...saved, starred: [], played: [] });
+  });
+
+  /** Saved before the room remembered what it played: no `played`, and nothing is remembered. */
+  test("loads a room saved before Recently played as having played nothing", async () => {
+    const db = openDatabase(":memory:");
+    migrate(db);
+    const saved = {
+      version: 9,
+      entries: {},
+      queue: [],
+      current: null,
+      repeat: "off" as const,
+      shuffle: false,
+      starred: [],
+    };
+    db.query(
+      "INSERT INTO room_state (id, state, saved_at, clean_shutdown) VALUES (1, ?, 0, 1)",
+    ).run(JSON.stringify(saved));
+
+    const loaded = await new SqliteRoomRepository(db).load();
+
+    expect(loaded?.state).toEqual({ ...saved, played: [] });
+  });
+
+  test("refuses a saved room whose played songs are not songs", async () => {
+    const db = openDatabase(":memory:");
+    migrate(db);
+    const insert = db.query(
+      "INSERT OR REPLACE INTO room_state (id, state, saved_at, clean_shutdown) VALUES (1, ?, 0, 1)",
+    );
+    const room = {
+      version: 3,
+      entries: {},
+      queue: [],
+      current: null,
+      repeat: "off",
+      shuffle: false,
+      starred: [],
+    };
+
+    for (const played of [
+      "youtube:a1",
+      [{ trackId: "youtube:a1", ownerId: "ada" }],
+      [{ trackId: 1, ownerId: "ada", at: 1 }],
+      null,
+    ]) {
+      insert.run(JSON.stringify({ ...room, played }));
+      await expect(new SqliteRoomRepository(db).load()).rejects.toThrow("expected shape");
+    }
   });
 
   test("refuses a saved room whose starred songs are not a list of entry ids", async () => {

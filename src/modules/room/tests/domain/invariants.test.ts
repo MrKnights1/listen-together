@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { RECENTLY_PLAYED } from "@/modules/room/domain/limits.ts";
 import type { RoomCommand } from "@/modules/room/domain/commands.ts";
 import { decide } from "@/modules/room/domain/decide.ts";
 import { commit } from "@/modules/room/domain/evolve.ts";
@@ -123,6 +124,11 @@ function structuralViolations(state: RoomState): string[] {
   }
   if (new Set(state.starred).size !== state.starred.length) problems.push("a song starred twice");
 
+  if (state.played.length > RECENTLY_PLAYED) problems.push("Recently played is too long");
+  if (new Set(state.played.map((song) => song.trackId)).size !== state.played.length) {
+    problems.push("a song is in Recently played twice");
+  }
+
   return problems;
 }
 
@@ -235,6 +241,17 @@ describe("room invariants under random commands", () => {
     expect(structuralViolations({ ...queued, starred: ["ghost"] })).not.toEqual([]);
     expect(structuralViolations({ ...queued, starred: ["e1", "e1"] })).not.toEqual([]);
     expect(structuralViolations({ ...queued, starred: ["e1"] })).toEqual([]);
+  });
+
+  test("the structural check catches Recently played listing a song twice, or too many", () => {
+    const song = (trackId: string) => ({ trackId, ownerId: "ada", at: 0 });
+    const many = Array.from({ length: RECENTLY_PLAYED + 1 }, (_, index) => song(`t${index}`));
+
+    expect(structuralViolations({ ...emptyRoom(), played: [song("t"), song("t")] })).not.toEqual(
+      [],
+    );
+    expect(structuralViolations({ ...emptyRoom(), played: many })).not.toEqual([]);
+    expect(structuralViolations({ ...emptyRoom(), played: many.slice(1) })).toEqual([]);
   });
 
   test("the order check catches a song that jumped the queue", () => {

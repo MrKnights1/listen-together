@@ -1,6 +1,6 @@
 import type { Database } from "bun:sqlite";
 import type { RoomRepository, StoredRoom } from "@/modules/room/domain/ports/RoomRepository.ts";
-import type { RoomState } from "@/modules/room/domain/RoomState.ts";
+import type { PlayedSong, RoomState } from "@/modules/room/domain/RoomState.ts";
 
 interface RoomRow {
   state: string;
@@ -59,10 +59,14 @@ function parseRoomState(json: string): RoomState {
   const shuffle = "shuffle" in value ? value["shuffle"] : false;
   // A room saved before songs could be starred had none starred.
   const starred: unknown = "starred" in value ? value["starred"] : [];
+  // A room saved before it remembered what it played had played nothing it remembers.
+  const played: unknown = "played" in value ? value["played"] : [];
   if (
     typeof shuffle !== "boolean" ||
     !Array.isArray(starred) ||
     !starred.every((entryId): entryId is string => typeof entryId === "string") ||
+    !Array.isArray(played) ||
+    !played.every(isPlayedSong) ||
     typeof value["version"] !== "number" ||
     !isRecord(value["entries"]) ||
     !queue.every((entryId): entryId is string => typeof entryId === "string") ||
@@ -80,8 +84,15 @@ function parseRoomState(json: string): RoomState {
     repeat: value["repeat"] as RoomState["repeat"],
     shuffle,
     starred,
+    played,
   };
 }
+
+const isPlayedSong = (candidate: unknown): candidate is PlayedSong =>
+  isRecord(candidate) &&
+  typeof candidate["trackId"] === "string" &&
+  typeof candidate["ownerId"] === "string" &&
+  typeof candidate["at"] === "number";
 
 const isRecord = (candidate: unknown): candidate is Record<string, unknown> =>
   typeof candidate === "object" && candidate !== null && !Array.isArray(candidate);

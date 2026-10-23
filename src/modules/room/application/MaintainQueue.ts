@@ -1,6 +1,7 @@
 import type { Clock } from "@/shared/domain/Clock.ts";
 import { ACTIVITY_RETENTION_MS } from "@/modules/room/domain/activity.ts";
 import { RoomSuspended } from "@/modules/room/domain/errors.ts";
+import { trackIdsInUse } from "@/modules/room/domain/RoomState.ts";
 import type { ActivityRepository } from "@/modules/room/domain/ports/ActivityRepository.ts";
 import type { TrackSource } from "@/modules/room/domain/ports/TrackSource.ts";
 import type { RoomEngine } from "./RoomEngine.ts";
@@ -24,10 +25,10 @@ export class MaintainQueue {
   ) {}
 
   async execute(): Promise<QueueMaintenance> {
-    const entries = Object.values(this.engine.snapshot().state.entries);
-    const unplayable = new Set(
-      await this.trackSource.maintain([...new Set(entries.map((entry) => entry.trackId))]),
-    );
+    const { state } = this.engine.snapshot();
+    const entries = Object.values(state.entries);
+    // Played songs too: kept fresh in the cache, adding one again asks YouTube nothing.
+    const unplayable = new Set(await this.trackSource.maintain(trackIdsInUse(state)));
 
     let removed = 0;
     for (const entry of entries.filter((one) => unplayable.has(one.trackId))) {

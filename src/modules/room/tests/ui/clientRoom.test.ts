@@ -4,7 +4,7 @@ import { decide } from "@/modules/room/domain/decide.ts";
 import { commit } from "@/modules/room/domain/evolve.ts";
 import { emptyRoom, type RoomState } from "@/modules/room/domain/RoomState.ts";
 import { emptyClientRoom, receive, type ClientRoom } from "@/modules/room/ui/clientRoom.ts";
-import { apply, context, songs } from "@/modules/room/tests/support/room.ts";
+import { apply, context, NOW, songs } from "@/modules/room/tests/support/room.ts";
 import { trackInfo } from "@/modules/room/tests/support/fakes.ts";
 
 function snapshot(state: RoomState = emptyRoom()): RoomSnapshot {
@@ -176,5 +176,28 @@ describe("receive keeps what did not change", () => {
 
     expect(next.people).not.toBe(room.people);
     expect(next.people["ada"]?.name).toBe("Ada L.");
+  });
+});
+
+describe("receive — Recently played", () => {
+  test("remembers a song the room moved on from exactly as the server does", () => {
+    const server = apply(emptyRoom(), { type: "add", ownerId: "ada", tracks: songs("ada", 2) });
+    const page = welcomed(server);
+    const entryId = server.current?.entryId;
+    if (entryId === undefined) throw new Error("expected a song playing");
+    const decision = decide(server, { type: "skip", entryId }, context(NOW + 60_000));
+    if (decision.kind !== "accepted") throw new Error("expected the skip to apply");
+
+    const next = receive(page, {
+      t: "ev",
+      v: server.version + 1,
+      by: "ada",
+      events: decision.events,
+      tracks: [],
+      activity: null,
+    });
+
+    expect(next.state.played).toEqual(commit(server, decision.events).played);
+    expect(next.state.played).toHaveLength(1);
   });
 });

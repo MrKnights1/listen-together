@@ -184,6 +184,22 @@ test("two listeners hear the same moment, and each one's controls reach the othe
     expect((await mediaControls(bob)).title).toBe(second.title);
   });
 
+  await test.step("the skipped song shows under Recently played, and one adds it again", async () => {
+    const queued = (page: Page) => page.locator(".queue .row");
+    for (const page of [ada, bob]) {
+      await expect(page.locator(".recent__row .recent__title").first()).toHaveText(first.title);
+      await expect(queued(page)).toHaveCount(0);
+    }
+
+    await bob.getByRole("button", { name: `Add ${first.title} again` }).click();
+    await expect(bob.locator(".recent__result")).toHaveText("Added 1 song to your list.");
+    for (const page of [ada, bob]) await expect(queued(page)).toHaveCount(1);
+
+    // Back as it was: the next step queues this very song for Bob.
+    await bob.getByRole("button", { name: `Remove ${first.title} from the queue` }).click();
+    for (const page of [ada, bob]) await expect(queued(page)).toHaveCount(0);
+  });
+
   await test.step("one clears the queue after saying yes, and it empties for both", async () => {
     const queued = (page: Page) => page.locator(".queue .row");
     const count = (page: Page) => page.locator(".upnext__count");

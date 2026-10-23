@@ -43,6 +43,11 @@ const SKIP_REASONS: Record<string, string> = {
 /** 1 song, 12 songs. Also how many songs wait in Up next, beside its heading. */
 export const songs = (count: number) => `${count} ${count === 1 ? "song" : "songs"}`;
 
+/** A time of day in the listener's own way of writing it: "20:14", or "08:14 PM". */
+export function clockTime(at: number): string {
+  return new Date(at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
 /** What adding a link did, in one or two sentences. */
 export function addSummary(result: AddResult): string {
   const parts: string[] = [];

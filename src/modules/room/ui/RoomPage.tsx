@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { songLinkOf } from "@/modules/catalog/ui/index.ts";
 import { SignOutButton, type SessionUser } from "@/modules/identity/ui/index.ts";
 import {
   PlayerTile,
@@ -11,6 +12,8 @@ import {
   type Target,
 } from "@/modules/player/ui/index.ts";
 import type { CommandOp } from "@/modules/room/contract/messages.ts";
+import type { LinkScope } from "@/modules/room/domain/ports/TrackSource.ts";
+import type { TrackInfo } from "@/modules/room/domain/TrackInfo.ts";
 import { positionAt } from "@/modules/room/domain/playback.ts";
 import type { RepeatMode } from "@/modules/room/domain/RoomState.ts";
 import { BrandMark } from "@/shared/ui/BrandMark.tsx";
@@ -23,6 +26,7 @@ import { ConnectionBanner } from "./ConnectionBanner.tsx";
 import { ListenButton } from "./ListenButton.tsx";
 import { ListenerList } from "./ListenerList.tsx";
 import { NowPlaying } from "./NowPlaying.tsx";
+import { RecentlyPlayed } from "./RecentlyPlayed.tsx";
 import { roomPositionMs } from "./roomPosition.ts";
 import { SeekBar } from "./SeekBar.tsx";
 import { SyncNotice } from "./SyncNotice.tsx";
@@ -138,6 +142,16 @@ export function RoomPage({ me }: { me: SessionUser }) {
     [control],
   );
   const shuffleQueue = useCallback(() => control({ type: "shuffle" }), [control]);
+  /** Pasting a link, or adding a song again: the same command, answered in the same words. */
+  const addLink = useCallback(
+    async (url: string, scope: LinkScope) => {
+      const outcome = await command({ type: "add", url, scope });
+      if (!outcome.ok) return refusal(outcome.code);
+      return outcome.result === null ? "Added." : addSummary(outcome.result);
+    },
+    [command],
+  );
+  const addAgain = useCallback((track: TrackInfo) => addLink(songLinkOf(track), "song"), [addLink]);
   const clearQueue = useCallback(
     (addedUpTo: number) => control({ type: "clear", addedUpTo }),
     [control],
@@ -287,12 +301,12 @@ export function RoomPage({ me }: { me: SessionUser }) {
         </main>
 
         <div className="pane pane--side">
-          <AddTrackForm
-            onAdd={async (url, scope) => {
-              const outcome = await command({ type: "add", url, scope });
-              if (!outcome.ok) return refusal(outcome.code);
-              return outcome.result === null ? "Added." : addSummary(outcome.result);
-            }}
+          <AddTrackForm onAdd={addLink} />
+          <RecentlyPlayed
+            played={state.played}
+            tracks={tracks}
+            people={people}
+            onAddAgain={addAgain}
           />
           <ActivityFeed activity={room.activity} people={people} />
         </div>

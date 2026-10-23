@@ -248,6 +248,24 @@ describe("RestoreRoom", () => {
 
   const restore = () => new RestoreRoom(rooms, source, engine, clock).execute();
 
+  test("knows the songs it played as well as those it holds", async () => {
+    source.known.set("youtube:gone", trackInfo("gone"));
+    rooms.stored = {
+      state: { ...playingRoom(), played: [{ trackId: "youtube:gone", ownerId: "bob", at: NOW }] },
+      savedAt: NOW,
+      cleanShutdown: false,
+    };
+
+    await restore();
+
+    expect(
+      engine
+        .snapshot()
+        .tracks.map((track) => track.trackId)
+        .sort(),
+    ).toEqual(["youtube:gone", "youtube:one", "youtube:two"]);
+  });
+
   test("starts an empty room when nothing was ever saved", async () => {
     expect(await restore()).toEqual(emptyRoom());
   });
@@ -397,6 +415,17 @@ describe("MaintainQueue", () => {
     expect(Object.keys(rooms.stored?.state.entries ?? {})).toHaveLength(2);
   });
 
+  test("keeps the songs that played fresh too, so adding one again asks YouTube nothing", async () => {
+    source.link("x", [trackInfo("one"), trackInfo("two")]);
+    await addFromLink().execute("ada", "x", "song");
+    clock.set(NOW + 60_000);
+    await engine.execute({ type: "skip", entryId: "entry-1" }, "ada", []);
+
+    await new MaintainQueue(engine, source, activity, clock).execute();
+
+    expect(source.maintainedWith).toEqual([["youtube:one", "youtube:two"]]);
+  });
+
   test("trims the activity feed to 30 days", async () => {
     await activity.record({
       at: NOW - ACTIVITY_RETENTION_MS - 1,
@@ -413,6 +442,21 @@ describe("MaintainQueue", () => {
 });
 
 describe("GetRoomView", () => {
+  test("names whoever queued a song that played, though they have left", async () => {
+    source.link("x", [trackInfo("one"), trackInfo("two")]);
+    await addFromLink().execute("cy", "x", "song");
+    clock.set(NOW + 60_000);
+    await engine.execute({ type: "skip", entryId: "entry-1" }, "ada", []);
+    await engine.execute({ type: "remove", entryId: "entry-2" }, "ada", []);
+    const people = new InMemoryPeopleDirectory({ ada: "Ada", cy: "Cy" });
+
+    const view = await new GetRoomView(engine, activity, new DescribePeople(people)).execute([]);
+
+    expect(view.state.played.map((song) => song.ownerId)).toEqual(["cy"]);
+    expect(view.tracks.map((track) => track.title)).toEqual(["Song one"]);
+    expect(view.people.map((person) => person.name)).toContain("Cy");
+  });
+
   test("gives a newcomer the room, its songs, the recent feed and the people in it", async () => {
     source.link("x", [trackInfo("one")]);
     await addFromLink().execute("ada", "x", "song");

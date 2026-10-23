@@ -1,4 +1,5 @@
 import type { RoomEvent } from "./events.ts";
+import { rememberPlayed } from "./recentlyPlayed.ts";
 import type { RoomState } from "./RoomState.ts";
 
 function withoutEntry(state: RoomState, entryId: string): RoomState {
@@ -11,7 +12,8 @@ function withoutEntry(state: RoomState, entryId: string): RoomState {
  * Moves the room on from its current song: replay it, re-queue it at the end,
  * or drop it; then start the song the event names. A paused room stays paused
  * on the next song — somebody paused it, and skipping is not a reason to start
- * playing.
+ * playing. A replay is not moving on: only leaving a song puts it in
+ * Recently played.
  */
 function advance(state: RoomState, reason: RoomEvent & { type: "advanced" }): RoomState {
   const current = state.current;
@@ -29,6 +31,7 @@ function advance(state: RoomState, reason: RoomEvent & { type: "advanced" }): Ro
       };
     }
 
+    room = { ...room, played: rememberPlayed(state, reason) };
     room =
       state.repeat === "all" && reason.reason !== "removed"
         ? { ...room, queue: [...room.queue, current.entryId] }

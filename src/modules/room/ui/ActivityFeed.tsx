@@ -1,10 +1,6 @@
 import type { Person } from "@/modules/room/contract/messages.ts";
 import type { ActivityEntry } from "@/modules/room/domain/activity.ts";
-import { activityLine } from "./wording.ts";
-
-function clockTime(at: number): string {
-  return new Date(at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
+import { activityLine, clockTime } from "./wording.ts";
 
 export function ActivityFeed({
   activity,

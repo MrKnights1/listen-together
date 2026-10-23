@@ -4,7 +4,7 @@ import { RESUME_WINDOW_MS } from "@/modules/room/domain/limits.ts";
 import { positionAt } from "@/modules/room/domain/playback.ts";
 import type { RoomRepository } from "@/modules/room/domain/ports/RoomRepository.ts";
 import type { TrackSource } from "@/modules/room/domain/ports/TrackSource.ts";
-import { emptyRoom, type RoomState } from "@/modules/room/domain/RoomState.ts";
+import { emptyRoom, trackIdsInUse, type RoomState } from "@/modules/room/domain/RoomState.ts";
 import type { RoomEngine } from "./RoomEngine.ts";
 
 /**
@@ -37,8 +37,7 @@ export class RestoreRoom {
       }
     }
 
-    const trackIds = [...new Set(Object.values(state.entries).map((entry) => entry.trackId))];
-    this.engine.load(state, await this.trackSource.describe(trackIds));
+    this.engine.load(state, await this.trackSource.describe(trackIdsInUse(state)));
     // Saved straight away, so the clean-shutdown mark cannot be reused by a later crash.
     await this.rooms.save(state, now, false);
     return state;

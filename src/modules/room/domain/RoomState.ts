@@ -17,6 +17,15 @@ export interface QueueEntry {
   addedAt: number;
 }
 
+/** A song the room moved on from: shown, and offered to be added again. */
+export interface PlayedSong {
+  trackId: string;
+  /** Who had queued it. */
+  ownerId: string;
+  /** When the room moved on from it. */
+  at: number;
+}
+
 /** The one song everybody is on, and where in it they are. */
 export interface NowPlaying {
   entryId: string;
@@ -46,6 +55,8 @@ export interface RoomState {
    * is off they wait, unused, for it to come back on. Never holds the current entry.
    */
   starred: string[];
+  /** The songs the room moved on from, newest first, each once. */
+  played: PlayedSong[];
 }
 
 export function emptyRoom(): RoomState {
@@ -57,7 +68,28 @@ export function emptyRoom(): RoomState {
     repeat: "off",
     shuffle: false,
     starred: [],
+    played: [],
   };
+}
+
+/** Every song the room shows: those in it, and those it played. Their details must stay known. */
+export function trackIdsInUse(state: RoomState): string[] {
+  return [
+    ...new Set([
+      ...Object.values(state.entries).map((entry) => entry.trackId),
+      ...state.played.map((song) => song.trackId),
+    ]),
+  ];
+}
+
+/** Everybody whose name the room shows beside a song, queued or played. */
+export function ownerIdsInView(state: RoomState): string[] {
+  return [
+    ...new Set([
+      ...Object.values(state.entries).map((entry) => entry.ownerId),
+      ...state.played.map((song) => song.ownerId),
+    ]),
+  ];
 }
 
 /** Where a queued entry is in the line, or -1 if it is not queued. */
