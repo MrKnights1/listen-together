@@ -22,7 +22,8 @@ export interface ResolvedLink {
  * `LinkRejected` for a link that adds nothing at all.
  */
 export interface TrackSource {
-  resolve(pasted: string, scope: LinkScope): Promise<ResolvedLink>;
+  /** At most `limit` playable songs: a playlist past that comes back `truncated`. */
+  resolve(pasted: string, scope: LinkScope, limit: number): Promise<ResolvedLink>;
   describe(trackIds: string[]): Promise<TrackInfo[]>;
   /** Daily upkeep of the songs still in use; returns the ones that can no longer play. */
   maintain(referencedTrackIds: string[]): Promise<string[]>;

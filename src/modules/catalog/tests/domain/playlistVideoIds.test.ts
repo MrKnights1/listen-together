@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { SongNotInPlaylist } from "@/modules/catalog/domain/errors.ts";
-import { takeFromPlaylist } from "@/modules/catalog/domain/youtube/takeFromPlaylist.ts";
+import { playlistVideoIds } from "@/modules/catalog/domain/youtube/playlistVideoIds.ts";
 
 /** A playlist served page by page, counting the pages anybody asked for. */
 function served(pages: string[][]) {
@@ -14,7 +14,23 @@ function served(pages: string[][]) {
   return { pages: read(), asked };
 }
 
-describe("takeFromPlaylist — from the top", () => {
+/** Reads up to `limit` videos, as the resolver does, then looks one further to tell whether there were more. */
+async function takeFromPlaylist(
+  pages: AsyncIterable<string[]>,
+  startAt: string | null,
+  limit: number,
+): Promise<{ videoIds: string[]; hasMore: boolean }> {
+  const ids = playlistVideoIds(pages, startAt);
+  const videoIds: string[] = [];
+  while (videoIds.length < limit) {
+    const next = await ids.next();
+    if (next.done === true) return { videoIds, hasMore: false };
+    videoIds.push(next.value);
+  }
+  return { videoIds, hasMore: (await ids.next()).done !== true };
+}
+
+describe("playlistVideoIds — from the top", () => {
   test("takes every video of a playlist shorter than the limit, in order", async () => {
     const { pages } = served([["a", "b"], ["c"]]);
 
@@ -67,7 +83,7 @@ describe("takeFromPlaylist — from the top", () => {
   });
 });
 
-describe("takeFromPlaylist — from a song in it", () => {
+describe("playlistVideoIds — from a song in it", () => {
   test("starts at the song, wherever its page", async () => {
     const { pages } = served([["a", "b"], ["c", "d"], ["e"]]);
 
@@ -102,7 +118,7 @@ describe("takeFromPlaylist — from a song in it", () => {
 });
 
 /** A Mix never ends: YouTube keeps serving pages of songs it already served. */
-describe("takeFromPlaylist — a list that repeats itself", () => {
+describe("playlistVideoIds — a list that repeats itself", () => {
   test("stops at the first page that brings nothing new", async () => {
     const { pages, asked } = served([
       ["a", "b", "c"],

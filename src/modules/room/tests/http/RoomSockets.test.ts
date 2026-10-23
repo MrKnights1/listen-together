@@ -276,9 +276,9 @@ describe("commands", () => {
     let release: () => void = () => undefined;
     source.link("slow", [trackInfo("one")]);
     const original = source.resolve.bind(source);
-    source.resolve = async (pasted, scope) => {
+    source.resolve = async (pasted, scope, limit) => {
       await new Promise<void>((resolve) => (release = resolve));
-      return await original(pasted, scope);
+      return await original(pasted, scope, limit);
     };
     const ada = await connect("ada");
 

@@ -13,6 +13,9 @@ import { LinkRejected } from "@/modules/room/domain/errors.ts";
 import { CatalogTrackSource } from "@/modules/room/infrastructure/CatalogTrackSource.ts";
 import { FakeClock } from "@/modules/room/tests/support/fakes.ts";
 
+/** More songs than any test pastes: the room has a place for every one. */
+const PLENTY = 5000;
+
 /**
  * The adapter through the catalog's real published use cases and its real
  * SQLite cache. Only YouTube itself is replaced — by an object with the shape
@@ -92,7 +95,7 @@ describe("CatalogTrackSource", () => {
   test("turns a link into the room's view of its songs", async () => {
     video("dQw4w9WgXcQ");
 
-    const resolved = await source.resolve("https://youtu.be/dQw4w9WgXcQ", "song");
+    const resolved = await source.resolve("https://youtu.be/dQw4w9WgXcQ", "song", PLENTY);
 
     expect(resolved).toEqual({
       tracks: [
@@ -118,14 +121,21 @@ describe("CatalogTrackSource", () => {
       for (const id of ["AAAAAAAAAAA", "BBBBBBBBBBB", "CCCCCCCCCCC"]) video(id);
     });
 
+    test("is no more of the playlist than the room has a place for, and says the rest was left", async () => {
+      const resolved = await source.resolve(inList, "playlist", 1);
+
+      expect(resolved.tracks.map((one) => one.providerTrackId)).toEqual(["BBBBBBBBBBB"]);
+      expect(resolved.truncated).toBe(true);
+    });
+
     test("is just that song when the person chose the song", async () => {
-      const resolved = await source.resolve(inList, "song");
+      const resolved = await source.resolve(inList, "song", PLENTY);
 
       expect(resolved.tracks.map((one) => one.providerTrackId)).toEqual(["BBBBBBBBBBB"]);
     });
 
     test("is the playlist from that song on when the person chose the playlist", async () => {
-      const resolved = await source.resolve(inList, "playlist");
+      const resolved = await source.resolve(inList, "playlist", PLENTY);
 
       expect(resolved.tracks.map((one) => one.providerTrackId)).toEqual([
         "BBBBBBBBBBB",
@@ -136,7 +146,9 @@ describe("CatalogTrackSource", () => {
     test("is rejected as song_not_in_playlist once the playlist dropped the song", async () => {
       videos.delete("BBBBBBBBBBB");
 
-      const failure = await source.resolve(inList, "playlist").catch((error: unknown) => error);
+      const failure = await source
+        .resolve(inList, "playlist", PLENTY)
+        .catch((error: unknown) => error);
 
       expect(failure).toBeInstanceOf(LinkRejected);
       expect((failure as LinkRejected).code).toBe("song_not_in_playlist");
@@ -146,7 +158,7 @@ describe("CatalogTrackSource", () => {
   test("passes skipped songs on with their reasons", async () => {
     video("dQw4w9WgXcQ", { embeddable: false, title: "Blocked" });
 
-    const resolved = await source.resolve("https://youtu.be/dQw4w9WgXcQ", "song");
+    const resolved = await source.resolve("https://youtu.be/dQw4w9WgXcQ", "song", PLENTY);
 
     expect(resolved.skipped).toEqual([{ title: "Blocked", reason: "not_embeddable" }]);
   });
@@ -155,7 +167,7 @@ describe("CatalogTrackSource", () => {
     ["hello", "invalid_url"],
     ["https://open.spotify.com/track/abc", "unsupported_url"],
   ] as const)("rejects %p as %s", async (pasted, code) => {
-    const failure = await source.resolve(pasted, "song").catch((error: unknown) => error);
+    const failure = await source.resolve(pasted, "song", PLENTY).catch((error: unknown) => error);
 
     expect(failure).toBeInstanceOf(LinkRejected);
     expect((failure as LinkRejected).code).toBe(code);
@@ -169,7 +181,7 @@ describe("CatalogTrackSource", () => {
 
     try {
       const failure = await source
-        .resolve("https://youtu.be/dQw4w9WgXcQ", "song")
+        .resolve("https://youtu.be/dQw4w9WgXcQ", "song", PLENTY)
         .catch((error: unknown) => error);
       expect(failure).toBeInstanceOf(LinkRejected);
       expect((failure as LinkRejected).code).toBe("provider_unavailable");
@@ -182,12 +194,14 @@ describe("CatalogTrackSource", () => {
   test("lets an error that is not the catalog's through untouched", async () => {
     failing = new TypeError("a bug, not an outage");
 
-    await expect(source.resolve("https://youtu.be/dQw4w9WgXcQ", "song")).rejects.toThrow(TypeError);
+    await expect(source.resolve("https://youtu.be/dQw4w9WgXcQ", "song", PLENTY)).rejects.toThrow(
+      TypeError,
+    );
   });
 
   test("describes cached songs by id", async () => {
     video("dQw4w9WgXcQ");
-    await source.resolve("https://youtu.be/dQw4w9WgXcQ", "song");
+    await source.resolve("https://youtu.be/dQw4w9WgXcQ", "song", PLENTY);
 
     expect(
       (await source.describe(["youtube:dQw4w9WgXcQ", "youtube:missing0000"])).map((t) => t.title),
@@ -196,7 +210,7 @@ describe("CatalogTrackSource", () => {
 
   test("reports queued songs that stopped being playable", async () => {
     video("dQw4w9WgXcQ");
-    await source.resolve("https://youtu.be/dQw4w9WgXcQ", "song");
+    await source.resolve("https://youtu.be/dQw4w9WgXcQ", "song", PLENTY);
     videos.clear();
     clock.set(NOW + 26 * 86_400_000);
 

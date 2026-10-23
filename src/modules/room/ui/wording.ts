@@ -51,8 +51,7 @@ export function addSummary(result: AddResult): string {
   );
   if (result.duplicates > 0) parts.push(`${songs(result.duplicates)} already queued.`);
   if (result.overflow > 0) parts.push(`${songs(result.overflow)} left out: the room is full.`);
-  if (result.truncated)
-    parts.push("The playlist was longer than the room can hold, so only its first part was taken.");
+  if (result.truncated) parts.push("The room is full, so the rest of the playlist was left out.");
   if (result.skipped.length === 1) {
     const [only] = result.skipped;
     parts.push(

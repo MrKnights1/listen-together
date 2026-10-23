@@ -1,3 +1,5 @@
+import { MAX_ROOM_ENTRIES } from "./limits.ts";
+
 /**
  * The room, as plain data. Plain on purpose: the same value travels to every
  * browser as JSON and is folded forward there by the same `evolve`, so it must
@@ -66,6 +68,16 @@ export function queueIndex(state: RoomState, entryId: string): number {
 /** One person's queued entries, in the order they will play. */
 export function queuedBy(state: RoomState, ownerId: string): string[] {
   return state.queue.filter((entryId) => state.entries[entryId]?.ownerId === ownerId);
+}
+
+/**
+ * The most songs one paste by `ownerId` can put to use: every free place, and
+ * as many again as could come back as duplicates of their own list or of the
+ * song playing, which take no place.
+ */
+export function pasteAllowance(state: RoomState, ownerId: string): number {
+  const free = Math.max(0, MAX_ROOM_ENTRIES - Object.keys(state.entries).length);
+  return free + queuedBy(state, ownerId).length + (state.current === null ? 0 : 1);
 }
 
 /** The queued entries added at or before `addedUpTo`, in the order they will play. */

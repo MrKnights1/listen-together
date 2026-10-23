@@ -8,10 +8,11 @@ import { parseTrackUrl } from "@/modules/catalog/domain/trackUrl.ts";
 export class ResolveTrackUrl {
   constructor(private readonly resolvers: TrackResolver[]) {}
 
-  async execute(pasted: string, scope: LinkScope): Promise<Resolution> {
+  /** At most `limit` playable tracks; see `TrackResolver.resolve`. */
+  async execute(pasted: string, scope: LinkScope, limit: number): Promise<Resolution> {
     const url = parseTrackUrl(pasted);
     const resolver = this.resolvers.find((candidate) => candidate.recognizes(url));
     if (resolver === undefined) throw new UnsupportedTrackUrl();
-    return await resolver.resolve(url, scope);
+    return await resolver.resolve(url, scope, limit);
   }
 }

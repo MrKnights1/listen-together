@@ -17,6 +17,9 @@ import {
   videoId,
 } from "@/modules/catalog/tests/support/fakes.ts";
 
+/** More songs than any test pastes: the room has a place for every one. */
+const PLENTY = 5000;
+
 const NOW = new Date("2026-10-15T10:00:00.000Z");
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -43,20 +46,21 @@ describe("ResolveTrackUrl", () => {
     const resolution = await new ResolveTrackUrl([resolver]).execute(
       " youtu.be/dQw4w9WgXcQ ",
       "song",
+      PLENTY,
     );
 
     expect(resolution.tracks.map((one) => one.id)).toEqual(["youtube:dQw4w9WgXcQ"]);
   });
 
   test("refuses something that is not a link", async () => {
-    await expect(new ResolveTrackUrl([resolver]).execute("hello", "song")).rejects.toThrow(
+    await expect(new ResolveTrackUrl([resolver]).execute("hello", "song", PLENTY)).rejects.toThrow(
       InvalidTrackUrl,
     );
   });
 
   test("refuses a link no provider here can play", async () => {
     await expect(
-      new ResolveTrackUrl([resolver]).execute("https://open.spotify.com/track/abc", "song"),
+      new ResolveTrackUrl([resolver]).execute("https://open.spotify.com/track/abc", "song", PLENTY),
     ).rejects.toThrow(UnsupportedTrackUrl);
     expect(youtube.videoCalls).toEqual([]);
   });

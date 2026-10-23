@@ -64,7 +64,7 @@ describe("wording", () => {
     });
 
     expect(summary).toStartWith("Nothing new was added.");
-    expect(summary).toContain("longer than the room can hold");
+    expect(summary).toContain("The room is full, so the rest of the playlist was left out.");
   });
 
   /** Nobody has a list of their own to fill any more: only the room can be full. */

@@ -39,6 +39,9 @@ import {
   type Sample,
 } from "../measureResources.ts";
 
+/** More songs than any test pastes: the room has a place for every one. */
+const PLENTY = 5000;
+
 const MB = 1024 * 1024;
 
 function samples(count: number, rssMb: (index: number) => number, cpuPercent: number): Sample[] {
@@ -236,7 +239,7 @@ describe("measuring never spends YouTube quota", () => {
 
     await new RestoreRoom(rooms, source, engine, clock).execute();
     const maintained = await new MaintainQueue(engine, source, activity, clock).execute();
-    for (const id of SONG_IDS) await source.resolve(`https://youtu.be/${id}`, "song");
+    for (const id of SONG_IDS) await source.resolve(`https://youtu.be/${id}`, "song", PLENTY);
 
     expect(calls).toEqual([]);
     expect(Object.keys(engine.snapshot().state.entries)).toHaveLength(FULL_ROOM_IDS.length);

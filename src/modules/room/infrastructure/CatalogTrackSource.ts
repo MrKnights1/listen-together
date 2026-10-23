@@ -35,9 +35,9 @@ function toTrackInfo(track: Track): TrackInfo {
 export class CatalogTrackSource implements TrackSource {
   constructor(private readonly catalog: CatalogUseCases) {}
 
-  async resolve(pasted: string, scope: LinkScope): Promise<ResolvedLink> {
+  async resolve(pasted: string, scope: LinkScope, limit: number): Promise<ResolvedLink> {
     try {
-      const resolution = await this.catalog.resolveTrackUrl.execute(pasted, scope);
+      const resolution = await this.catalog.resolveTrackUrl.execute(pasted, scope, limit);
       return {
         tracks: resolution.tracks.map(toTrackInfo),
         skipped: resolution.skipped.map((one) => ({ title: one.title, reason: one.reason })),

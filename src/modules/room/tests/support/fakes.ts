@@ -151,6 +151,8 @@ export class StubTrackSource implements TrackSource {
   rejectWith: LinkRejectionCode | null = null;
   /** The scope each resolve was asked for, in order. */
   readonly scopes: LinkScope[] = [];
+  /** The most songs each resolve was allowed, in order. */
+  readonly limits: number[] = [];
   unplayable: string[] = [];
   maintainedWith: string[][] = [];
 
@@ -159,8 +161,9 @@ export class StubTrackSource implements TrackSource {
     for (const track of tracks) this.known.set(track.trackId, track);
   }
 
-  async resolve(pasted: string, scope: LinkScope): Promise<ResolvedLink> {
+  async resolve(pasted: string, scope: LinkScope, limit: number): Promise<ResolvedLink> {
     this.scopes.push(scope);
+    this.limits.push(limit);
     if (this.rejectWith !== null) throw new LinkRejected(this.rejectWith);
     const resolved = this.links.get(pasted);
     if (resolved === undefined) throw new LinkRejected("unsupported_url");

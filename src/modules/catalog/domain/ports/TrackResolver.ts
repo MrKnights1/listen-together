@@ -10,7 +10,11 @@ import type { Track } from "@/modules/catalog/domain/Track.ts";
 export interface TrackResolver {
   readonly provider: ProviderId;
   recognizes(url: URL): boolean;
-  resolve(url: URL, scope: LinkScope): Promise<Resolution>;
+  /**
+   * At most `limit` playable tracks: a playlist is read only as far as it
+   * takes to find them, and comes back truncated if it held more.
+   */
+  resolve(url: URL, scope: LinkScope, limit: number): Promise<Resolution>;
   /**
    * Asks the provider again about tracks it described before. Tracks it no
    * longer answers for come back with `not_found`.

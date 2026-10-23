@@ -11,6 +11,7 @@ import { ACTIVITY_RETENTION_MS } from "@/modules/room/domain/activity.ts";
 import { LinkRejected } from "@/modules/room/domain/errors.ts";
 import {
   EMPTY_ROOM_PAUSE_MS,
+  MAX_ROOM_ENTRIES,
   RESUME_WINDOW_MS,
   TRACK_END_GRACE_MS,
 } from "@/modules/room/domain/limits.ts";
@@ -55,6 +56,24 @@ const addFromLink = () => new AddFromLink(source, engine, new SequenceIds(), pas
 const state = () => engine.snapshot().state;
 
 describe("AddFromLink", () => {
+  test("lets the catalog fetch only what the room can still take for that person", async () => {
+    // One use case for all three pastes: each new one would hand out the same entry ids again.
+    const add = addFromLink();
+    source.link("first", [trackInfo("one"), trackInfo("two")]);
+    await add.execute("ada", "first", "song");
+    source.link("next", [trackInfo("three")]);
+
+    await add.execute("ada", "next", "playlist");
+    await add.execute("bob", "next", "playlist");
+
+    // One playing and one queued: Ada's own two may come back as duplicates, so they count too.
+    expect(source.limits).toEqual([
+      MAX_ROOM_ENTRIES,
+      MAX_ROOM_ENTRIES - 2 + 1 + 1,
+      MAX_ROOM_ENTRIES - 3 + 0 + 1,
+    ]);
+  });
+
   test("queues a link's playable songs in the person's list and reports it", async () => {
     source.link("youtu.be/x", [trackInfo("one"), trackInfo("two")], {
       skipped: [{ title: "Private song", reason: "private" }],
