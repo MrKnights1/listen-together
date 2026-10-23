@@ -181,6 +181,34 @@ describe("SyncNotice", () => {
     expect(html).toContain("Try again");
   });
 
+  test("says why a refused song won't play, what helps, and no retry where none can work", () => {
+    const html = renderToStaticMarkup(
+      <SyncNotice listening status="error" errorCode={150} onResync={noop} />,
+    );
+
+    expect(html).toContain("YouTube won&#x27;t play it here");
+    expect(html).toContain("sync__help");
+    expect(html).toContain("Trying again won&#x27;t help");
+    expect(html).not.toContain("Try again");
+    expect(html).toContain('title="YouTube error 150"');
+  });
+
+  test("offers to try again when YouTube's player failed on this device", () => {
+    const html = renderToStaticMarkup(
+      <SyncNotice listening status="error" errorCode={5} onResync={noop} />,
+    );
+
+    expect(html).toContain("reload the page");
+    expect(html).toContain("Try again");
+  });
+
+  test("offers to try again when out of sync, with no help line", () => {
+    const html = notice("out_of_sync");
+
+    expect(html).toContain("Try again");
+    expect(html).not.toContain("sync__help");
+  });
+
   test("offers nothing to try while the player is only catching up", () => {
     expect(notice("catching_up")).not.toContain("Try again");
   });
@@ -236,6 +264,21 @@ describe("ListenerList", () => {
     expect(html).toContain("In sync");
     expect(html).toContain("face__dot--away");
     expect(html).toContain("Here, not listening");
+  });
+
+  test("says in plain words why someone's player refused the song", () => {
+    const html = renderToStaticMarkup(
+      <ListenerList
+        listeners={[{ userId: "bob", listening: true, sync: "error", errorCode: 100 }]}
+        people={people}
+        you="ada"
+      />,
+    );
+
+    expect(html).toContain(
+      "Can&#x27;t play this song: it was removed from YouTube or made private",
+    );
+    expect(html).not.toContain("100");
   });
 
   test("says when someone's browser could not load YouTube's player", () => {

@@ -6,6 +6,7 @@ import {
   addSummary,
   clearQuestion,
   formatDuration,
+  playerProblem,
   presenceLine,
   refusal,
   songs,
@@ -76,8 +77,39 @@ describe("wording", () => {
   test("describes listeners in plain words", () => {
     expect(presenceLine(false, "idle", null)).toBe("Here, not listening");
     expect(presenceLine(true, "in_sync", null)).toBe("In sync");
-    expect(presenceLine(true, "error", 150)).toBe("Can't play this song (YouTube error 150)");
+    expect(presenceLine(true, "error", 150)).toBe(
+      "Can't play this song: YouTube won't play it here",
+    );
+    expect(presenceLine(true, "error", null)).toBe("Can't play this song");
     expect(presenceLine(true, "no_player", null)).toBe("YouTube's player didn't load");
+  });
+
+  test.each([2, 5, 100, 101, 150, 153, 999])(
+    "says why YouTube error %d stops the song, in words and without the number",
+    (code) => {
+      const line = presenceLine(true, "error", code);
+
+      expect(line).toStartWith("Can't play this song");
+      expect(line).not.toContain(String(code));
+    },
+  );
+
+  test("words the reason about the listener, since others read it beside their name", () => {
+    for (const code of [2, 5, 100, 101, 150, 153]) {
+      expect(playerProblem(code).what).not.toMatch(/\byour?\b/i);
+    }
+  });
+
+  test("offers a retry only where loading the song again can work", () => {
+    const retries = [2, 5, 100, 101, 150, 153, 999, null].filter(
+      (code) => playerProblem(code).retry,
+    );
+
+    expect(retries).toEqual([5, 153, 999, null]);
+  });
+
+  test("reads the same for both of YouTube's codes for an embed it refuses", () => {
+    expect(playerProblem(150)).toEqual(playerProblem(101));
   });
 
   test("describes feed lines with the song's title as it was", () => {

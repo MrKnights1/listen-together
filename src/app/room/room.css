@@ -186,6 +186,17 @@
   font-weight: 700;
 }
 
+/* Capped at the room the dot leaves, so a long line wraps beside it instead of dropping below. */
+.sync__line {
+  max-width: calc(100% - 20px);
+}
+
+.sync__help {
+  flex-basis: 100%;
+  color: var(--muted);
+  font-weight: 400;
+}
+
 .sync__dot {
   width: 10px;
   height: 10px;

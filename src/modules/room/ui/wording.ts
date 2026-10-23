@@ -70,6 +70,53 @@ export function clearQuestion(count: number): string {
   return `This removes ${what} from Up next for everyone. The song playing now keeps playing.`;
 }
 
+/** Why a listener's player refused the song, and what might help. */
+export interface PlayerProblem {
+  /** Said about the listener, so it reads right beside anyone's name; null when YouTube gave no reason. */
+  what: string | null;
+  /** Said to the listener whose player it is. */
+  help: string;
+  /** Whether loading the song again can work. */
+  retry: boolean;
+}
+
+const WONT_HELP = "Trying again won't help. If nobody can hear it, skip it.";
+
+/** YouTube's IFrame player error codes, in plain words. */
+export function playerProblem(errorCode: number | null): PlayerProblem {
+  switch (errorCode) {
+    case 2:
+      return { what: "its YouTube link is broken", help: WONT_HELP, retry: false };
+    case 5:
+      return {
+        what: "YouTube's player failed on this device",
+        help: "Try again. If it keeps failing, reload the page.",
+        retry: true,
+      };
+    case 100:
+      return { what: "it was removed from YouTube or made private", help: WONT_HELP, retry: false };
+    case 101:
+    case 150:
+      return {
+        what: "YouTube won't play it here",
+        help: `Its uploader allows it only on YouTube, or it is blocked where you are. ${WONT_HELP}`,
+        retry: false,
+      };
+    case 153:
+      return {
+        what: "the browser hid this site from YouTube",
+        help: "A privacy setting or extension stops YouTube seeing which site asks. Allow this site, then try again.",
+        retry: true,
+      };
+    default:
+      return {
+        what: null,
+        help: "Try again. If it keeps failing, skip it.",
+        retry: true,
+      };
+  }
+}
+
 /** A listener's line in "Listening now". */
 export function presenceLine(
   listening: boolean,
@@ -84,10 +131,10 @@ export function presenceLine(
       return "Catching up";
     case "out_of_sync":
       return "Out of sync";
-    case "error":
-      return errorCode === null
-        ? "Can't play this song"
-        : `Can't play this song (YouTube error ${errorCode})`;
+    case "error": {
+      const { what } = playerProblem(errorCode);
+      return what === null ? "Can't play this song" : `Can't play this song: ${what}`;
+    }
     case "no_player":
       return "YouTube's player didn't load";
     case "idle":
