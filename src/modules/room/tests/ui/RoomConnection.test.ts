@@ -117,6 +117,36 @@ describe("RoomConnection", () => {
     expect(live.sent.filter((message) => message["t"] === "ping")).toHaveLength(6);
   });
 
+  test("coming back to the tab re-measures the clock, but still pings only once a minute after", async () => {
+    const live = open();
+    await timers.advanceTo(10_000);
+
+    connection.wake();
+    await timers.advanceTo(20_000);
+    connection.wake();
+    await timers.advanceTo(30_000);
+    connection.wake();
+    await timers.advanceTo(31_200);
+    const afterWakes = live.sent.filter((message) => message["t"] === "ping").length;
+    expect(afterWakes).toBe(20);
+
+    await timers.advanceTo(31_200 + 5 * 60_000);
+    expect(live.sent.filter((message) => message["t"] === "ping")).toHaveLength(afterWakes + 5);
+    expect(timers.pending).toBe(1);
+  });
+
+  test("coming back to the tab while disconnected sends nothing, and the next line pings as usual", async () => {
+    open();
+    socket().onclose?.({ code: 1006 });
+
+    connection.wake();
+    await timers.advanceTo(1000);
+    const next = open();
+    await timers.advanceTo(1000 + 3 * 60_000);
+
+    expect(next.sent.filter((message) => message["t"] === "ping")).toHaveLength(5 + 3);
+  });
+
   test("hands each pong back with when it was sent and when it came back", async () => {
     const live = open();
     await timers.advanceTo(0);

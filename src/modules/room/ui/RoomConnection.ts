@@ -42,6 +42,8 @@ const BACKOFF_MS = [1000, 2000, 4000, 8000, 16_000, 30_000];
 const PING_BURST = 5;
 const PING_BURST_GAP_MS = 300;
 const PING_EVERY_MS = 60_000;
+/** Pings the server never answered (it drops those over its rate limit) are forgotten past this many. */
+const UNANSWERED_PINGS_KEPT = 16;
 /**
  * Adding a playlist waits on YouTube: a 5000-song one took 44 s against the
  * real API with nothing cached. Anything longer than this has gone wrong.
@@ -68,7 +70,10 @@ export class RoomConnection {
     string,
     { settle: (outcome: CommandOutcome) => void; cancel: () => void }
   >();
-  private timers: (() => void)[] = [];
+  /** Cancels for every timer not yet fired; each removes itself when it fires. */
+  private readonly timers = new Set<() => void>();
+  /** The one once-a-minute ping, however many bursts asked for it. */
+  private cancelKeepAlive: (() => void) | null = null;
   private presence: Presence | null = null;
   private stopped = false;
 
@@ -121,7 +126,8 @@ export class RoomConnection {
 
   /** The tab came back into view: a sleeping laptop's clock may have wandered. */
   wake(): void {
-    this.pingBurst();
+    // Not open: the burst that follows the next open measures it anyway.
+    if (this.opened) this.pingBurst();
   }
 
   private connect(state: ConnectionState): void {
@@ -195,26 +201,49 @@ export class RoomConnection {
     const delay = BACKOFF_MS[Math.min(this.attempt, BACKOFF_MS.length - 1)] ?? 30_000;
     this.attempt += 1;
     this.deps.onState("reconnecting");
-    this.timers.push(this.deps.schedule(delay, () => this.connect("reconnecting")));
+    this.after(delay, () => this.connect("reconnecting"));
   }
 
   private pingBurst(): void {
     for (let index = 0; index < PING_BURST; index += 1) {
-      this.timers.push(this.deps.schedule(index * PING_BURST_GAP_MS, () => this.ping()));
+      this.after(index * PING_BURST_GAP_MS, () => this.ping());
     }
-    this.timers.push(this.deps.schedule(PING_EVERY_MS, () => this.keepPinging()));
+    this.keepAlive();
   }
 
-  private keepPinging(): void {
-    this.ping();
-    this.timers.push(this.deps.schedule(PING_EVERY_MS, () => this.keepPinging()));
+  /** (Re)arms the once-a-minute ping, replacing any already armed. */
+  private keepAlive(): void {
+    this.cancelKeepAlive?.();
+    this.cancelKeepAlive = this.after(PING_EVERY_MS, () => {
+      this.ping();
+      this.keepAlive();
+    });
   }
 
   private ping(): void {
+    if (!this.opened) return;
     this.nextPing += 1;
     const sentAt = this.deps.now();
     this.pings.set(this.nextPing, sentAt);
+    // A Map iterates in insertion order: the first key is the oldest ping.
+    for (const oldest of this.pings.keys()) {
+      if (this.pings.size <= UNANSWERED_PINGS_KEPT) break;
+      this.pings.delete(oldest);
+    }
     this.send({ t: "ping", id: this.nextPing, c: sentAt });
+  }
+
+  /** Runs `run` after `ms`, tracked so a close or stop cancels it. Returns its cancel. */
+  private after(ms: number, run: () => void): () => void {
+    const cancel = this.deps.schedule(ms, () => {
+      this.timers.delete(cancel);
+      run();
+    });
+    this.timers.add(cancel);
+    return () => {
+      this.timers.delete(cancel);
+      cancel();
+    };
   }
 
   private send(message: ClientMessage): void {
@@ -231,6 +260,7 @@ export class RoomConnection {
 
   private clearTimers(): void {
     for (const cancel of this.timers) cancel();
-    this.timers = [];
+    this.timers.clear();
+    this.cancelKeepAlive = null;
   }
 }
