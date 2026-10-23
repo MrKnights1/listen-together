@@ -58,6 +58,35 @@ describe("buildClient", () => {
     }
   });
 
+  /** React's error decoder link is in its runtime and nowhere else. */
+  test("puts React in one chunk that all three pages load", async () => {
+    const scripts = files.filter((file) => file.endsWith(".js"));
+    const withReact: string[] = [];
+    for (const file of scripts)
+      if ((await read(file)).includes("react.dev/errors")) withReact.push(file);
+
+    expect(withReact).toHaveLength(1);
+    for (const page of ["room.html", "login.html", "admin.html"]) {
+      expect(await referencedBy(page)).toContain(`/${withReact[0]}`);
+    }
+  });
+
+  /** The smoke check after a deploy only follows what the pages name: what scripts import must be there too. */
+  test("writes every chunk the scripts import", async () => {
+    const imported: string[] = [];
+    for (const file of files.filter((name) => name.endsWith(".js"))) {
+      for (const match of (await read(file)).matchAll(
+        /(?:from|import\()\s*"\/(assets\/[^"]+\.js)"/g,
+      )) {
+        imported.push(match[1] as string);
+      }
+    }
+
+    // The pages import the shared chunk: finding no import at all means this looked in the wrong place.
+    expect(imported.length).toBeGreaterThanOrEqual(3);
+    for (const chunk of imported) expect(files).toContain(chunk);
+  });
+
   test("ships React's production build", async () => {
     const scripts = files.filter((file) => file.endsWith(".js"));
 

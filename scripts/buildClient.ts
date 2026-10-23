@@ -1,11 +1,12 @@
 /**
- * Builds the two pages for production. nginx serves the result; the Bun
+ * Builds the three pages for production. nginx serves the result; the Bun
  * process never bundles in production.
  *
  *   room.html, login.html,  served at /, /login and /admin, revalidated on
  *   admin.html              every visit
  *   assets/<name>-<hash>.*  everything they load, named by content so it can
- *                           be cached for a year
+ *                           be cached for a year; what the pages share, React
+ *                           above all, is split into one chunk of its own
  *   *.gz                    a gzip copy of each text file, for gzip_static
  *
  *   bun run build:client
@@ -31,6 +32,8 @@ export async function buildClient(outdir: string): Promise<string[]> {
     outdir,
     target: "browser",
     minify: true,
+    // One copy of React for all three pages: it stays cached across a deploy that changed only a page.
+    splitting: true,
     // Absolute, so a page at any path finds its assets.
     publicPath: "/",
     naming: {
