@@ -270,8 +270,8 @@ describe("RecentlyPlayed", () => {
         played={[]}
         tracks={{}}
         people={people}
-        upNext={new Set()}
-        playingTrackId={null}
+        repeatingAll={false}
+        comingUp={new Set()}
         onAddAgain={addAgain}
       />,
     );
@@ -286,8 +286,8 @@ describe("RecentlyPlayed", () => {
         played={played}
         tracks={tracks}
         people={people}
-        upNext={new Set()}
-        playingTrackId={null}
+        repeatingAll={false}
+        comingUp={new Set()}
         onAddAgain={addAgain}
       />,
     );
@@ -303,8 +303,8 @@ describe("RecentlyPlayed", () => {
         played={played}
         tracks={tracks}
         people={people}
-        upNext={new Set()}
-        playingTrackId={null}
+        repeatingAll={false}
+        comingUp={new Set()}
         onAddAgain={addAgain}
       />,
     );
@@ -314,21 +314,35 @@ describe("RecentlyPlayed", () => {
     expect(html.match(/title="Add again"/g)).toHaveLength(2);
   });
 
-  /** On repeat-all every song that played is back in Up next: adding it would add nothing. */
-  test("says a song is in Up next, and offers no add, when it is coming up anyway", () => {
+  /** On repeat-all every song that played comes round again: adding one would add nothing. */
+  test("offers no + at all while the whole queue repeats", () => {
     const html = renderToStaticMarkup(
       <RecentlyPlayed
         played={played}
         tracks={tracks}
         people={people}
-        upNext={new Set(["youtube:one"])}
-        playingTrackId="youtube:two"
+        repeatingAll
+        comingUp={new Set()}
         onAddAgain={addAgain}
       />,
     );
 
-    expect(html).toContain('<span class="recent__state">In Up next</span>');
-    expect(html).toContain('<span class="recent__state">Playing</span>');
+    expect(html).toContain("Song one");
+    expect(html).not.toContain("again");
+  });
+
+  test("offers no + for a song playing or already in Up next", () => {
+    const html = renderToStaticMarkup(
+      <RecentlyPlayed
+        played={played}
+        tracks={tracks}
+        people={people}
+        repeatingAll={false}
+        comingUp={new Set(["youtube:one", "youtube:two"])}
+        onAddAgain={addAgain}
+      />,
+    );
+
     expect(html).not.toContain("again");
   });
 
@@ -338,8 +352,8 @@ describe("RecentlyPlayed", () => {
         played={[{ trackId: "youtube:lost", ownerId: "ada", at: 0 }]}
         tracks={{}}
         people={people}
-        upNext={new Set()}
-        playingTrackId={null}
+        repeatingAll={false}
+        comingUp={new Set()}
         onAddAgain={addAgain}
       />,
     );

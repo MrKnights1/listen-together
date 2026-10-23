@@ -192,14 +192,19 @@ test("two listeners hear the same moment, and each one's controls reach the othe
     }
 
     const addAgain = (page: Page) => page.getByRole("button", { name: `Add ${first.title} again` });
-    const state = (page: Page) => page.locator(".recent__row").first().locator(".recent__state");
+
+    // While the whole queue repeats, every song comes round again: no + is offered.
+    await ada.getByRole("button", { name: "Repeat is off" }).click();
+    for (const page of [ada, bob]) await expect(addAgain(page)).toHaveCount(0);
+    await ada.getByRole("button", { name: "Repeating the whole queue" }).click();
+    await ada.getByRole("button", { name: "Repeating this song" }).click();
+    for (const page of [ada, bob]) await expect(addAgain(page)).toHaveCount(1);
 
     await addAgain(bob).click();
     await expect(bob.locator(".recent__result")).toHaveText("Added 1 song to your list.");
-    // Coming up now, as on repeat-all: adding it again would add nothing, so no + is offered.
+    // Coming up now: adding it again would add nothing, so no + is offered.
     for (const page of [ada, bob]) {
       await expect(queued(page)).toHaveCount(1);
-      await expect(state(page)).toHaveText("In Up next");
       await expect(addAgain(page)).toHaveCount(0);
     }
 
