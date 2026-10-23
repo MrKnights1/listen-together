@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { ActivityFeed } from "@/modules/room/ui/ActivityFeed.tsx";
 import { AddTrackForm } from "@/modules/room/ui/AddTrackForm.tsx";
 import { ArtworkGlow } from "@/modules/room/ui/ArtworkGlow.tsx";
+import { AutoplayBlockedNotice } from "@/modules/room/ui/AutoplayBlockedNotice.tsx";
 import { ConnectionBanner } from "@/modules/room/ui/ConnectionBanner.tsx";
 import { ListenButton } from "@/modules/room/ui/ListenButton.tsx";
 import { ListenerList } from "@/modules/room/ui/ListenerList.tsx";
@@ -219,6 +220,25 @@ describe("SyncNotice", () => {
         <SyncNotice listening={false} status="no_player" errorCode={null} onResync={noop} />,
       ),
     ).toBe("");
+  });
+});
+
+describe("AutoplayBlockedNotice", () => {
+  test("says nothing while the browser has not refused the sound", () => {
+    expect(renderToStaticMarkup(<AutoplayBlockedNotice blocked={false} />)).toBe("");
+  });
+
+  test("tells the listener to press the very button that starts the sound again", () => {
+    const html = renderToStaticMarkup(<AutoplayBlockedNotice blocked />);
+    const button = renderToStaticMarkup(
+      <ListenButton listening={false} onStart={noop} onStop={noop} />,
+    );
+    const buttonText = button.replace(/<[^>]+>/g, "");
+
+    expect(buttonText).toBe("Start listening");
+    expect(html).toContain("Your browser stopped the sound from starting");
+    expect(html).toContain(`Press ${buttonText} again`);
+    expect(html).toContain('role="status"');
   });
 });
 

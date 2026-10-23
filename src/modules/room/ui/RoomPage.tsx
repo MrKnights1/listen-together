@@ -18,6 +18,7 @@ import { Icon } from "@/shared/ui/Icon.tsx";
 import { ActivityFeed } from "./ActivityFeed.tsx";
 import { AddTrackForm } from "./AddTrackForm.tsx";
 import { ArtworkGlow } from "./ArtworkGlow.tsx";
+import { AutoplayBlockedNotice } from "./AutoplayBlockedNotice.tsx";
 import { ConnectionBanner } from "./ConnectionBanner.tsx";
 import { ListenButton } from "./ListenButton.tsx";
 import { ListenerList } from "./ListenerList.tsx";
@@ -272,6 +273,7 @@ export function RoomPage({ me }: { me: SessionUser }) {
                   onStart={() => setListening(true)}
                   onStop={() => setListening(false)}
                 />
+                <AutoplayBlockedNotice blocked={player.autoplayBlocked} />
               </div>
             )}
           </section>

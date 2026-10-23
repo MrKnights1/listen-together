@@ -595,6 +595,30 @@
   grid-area: hint;
 }
 
+.hero__listen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+
+.listen-blocked {
+  display: flex;
+  flex: 1 1 16rem;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.listen-blocked .icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--amber);
+}
+
 .hero__hint {
   display: flex;
   align-items: center;

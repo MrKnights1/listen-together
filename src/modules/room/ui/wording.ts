@@ -70,6 +70,10 @@ export function clearQuestion(count: number): string {
   return `This removes ${what} from Up next for everyone. The song playing now keeps playing.`;
 }
 
+/** Shown beside Start listening once the browser has refused to start the sound. */
+export const AUTOPLAY_BLOCKED =
+  "Your browser stopped the sound from starting. Press Start listening again. If it keeps happening, allow this site to play sound in your browser's settings.";
+
 /** Why a listener's player refused the song, and what might help. */
 export interface PlayerProblem {
   /** Said about the listener, so it reads right beside anyone's name; null when YouTube gave no reason. */
