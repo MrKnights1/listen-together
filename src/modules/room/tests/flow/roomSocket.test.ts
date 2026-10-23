@@ -247,8 +247,8 @@ describe("the room socket", () => {
   });
 
   /**
-   * Bun refuses the frame before any handler sees it and drops the connection:
-   * 1006 on both ends, with "Received too big message" as the server's reason.
+   * Bun refuses the frame before any handler sees it and closes with 1009
+   * (Message Too Big).
    */
   test("drops a connection that sends more than a message may hold, unread", async () => {
     const ada = tab(ADA.token);
@@ -256,7 +256,7 @@ describe("the room socket", () => {
 
     ada.ws.send(JSON.stringify({ t: "resync", pad: "x".repeat(MAX_MESSAGE_BYTES) }));
 
-    expect(await ada.closed).toBe(1006);
+    expect(await ada.closed).toBe(1009);
     expect(ada.messages.filter((message) => message.t === "snapshot")).toEqual([]);
     expect(sockets.count).toBe(0);
   });
