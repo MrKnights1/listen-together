@@ -46,7 +46,13 @@ describe("NowPlaying", () => {
 describe("SeekBar", () => {
   test("says it moves the song for everyone, and reads out the time", () => {
     const html = renderToStaticMarkup(
-      <SeekBar positionMs={65_000} durationMs={185_000} disabled={false} onSeek={noop} />,
+      <SeekBar
+        positionAt={() => 65_000}
+        moving={false}
+        durationMs={185_000}
+        disabled={false}
+        onSeek={noop}
+      />,
     );
 
     expect(html).toContain("moves it for everyone");

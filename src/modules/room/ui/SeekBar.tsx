@@ -2,20 +2,41 @@ import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { formatDuration } from "./wording.ts";
 
 /**
+ * This device's monotonic time, refreshed every `ms` while `running`. A stale
+ * reading right after a resume is harmless: the room's position never runs
+ * back before its anchor.
+ */
+function useTicker(ms: number, running: boolean): number {
+  const [now, setNow] = useState(() => performance.now());
+  useEffect(() => {
+    if (!running) return;
+    const handle = setInterval(() => setNow(performance.now()), ms);
+    return () => clearInterval(handle);
+  }, [ms, running]);
+  return now;
+}
+
+/**
  * The room's position, which anyone may move. Seeks on release, not on every
- * pixel dragged: the room hears one jump, not a hundred.
+ * pixel dragged: the room hears one jump, not a hundred. Its clock ticks here,
+ * and only while the song moves, so the rest of the page is not redrawn with it.
  */
 export function SeekBar({
-  positionMs,
+  positionAt,
+  moving,
   durationMs,
   disabled,
   onSeek,
 }: {
-  positionMs: number;
+  /** The room's position at this device's monotonic time. */
+  positionAt: (localNow: number) => number;
+  moving: boolean;
   durationMs: number;
   disabled: boolean;
   onSeek: (positionMs: number) => void;
 }) {
+  const now = useTicker(500, moving);
+  const positionMs = positionAt(now);
   const [scrubbing, setScrubbing] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const commit = useEffectEvent((seconds: number) => {

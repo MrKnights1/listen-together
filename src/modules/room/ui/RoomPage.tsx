@@ -23,22 +23,13 @@ import { ConnectionBanner } from "./ConnectionBanner.tsx";
 import { ListenButton } from "./ListenButton.tsx";
 import { ListenerList } from "./ListenerList.tsx";
 import { NowPlaying } from "./NowPlaying.tsx";
+import { roomPositionMs } from "./roomPosition.ts";
 import { SeekBar } from "./SeekBar.tsx";
 import { SyncNotice } from "./SyncNotice.tsx";
 import { TransportControls } from "./TransportControls.tsx";
 import { UpNextList, type QueueRow } from "./UpNextList.tsx";
 import { useRoom } from "./useRoom.ts";
 import { addSummary, refusal } from "./wording.ts";
-
-/** This device's monotonic time, refreshed every `ms` so the clock and seek bar move. */
-function useTicker(ms: number): number {
-  const [now, setNow] = useState(() => performance.now());
-  useEffect(() => {
-    const handle = setInterval(() => setNow(performance.now()), ms);
-    return () => clearInterval(handle);
-  }, [ms]);
-  return now;
-}
 
 export function RoomPage({ me }: { me: SessionUser }) {
   const { room, connection, clock, command, setPresence } = useRoom();
@@ -47,7 +38,6 @@ export function RoomPage({ me }: { me: SessionUser }) {
   );
   const [listening, setListening] = useState(false);
   const hostRef = useRef<HTMLDivElement>(null);
-  const now = useTicker(500);
 
   useEffect(() => {
     if (connection === "signed_out") window.location.replace("/login");
@@ -171,12 +161,10 @@ export function RoomPage({ me }: { me: SessionUser }) {
     [state, tracks],
   );
 
-  const positionMs =
-    current === null
-      ? 0
-      : clock.synced
-        ? positionAt(state, clock.serverNow(now))
-        : current.positionMs;
+  const seekPosition = useCallback(
+    (localNow: number) => roomPositionMs(state, clock, localNow),
+    [state, clock],
+  );
 
   return (
     <>
@@ -238,7 +226,8 @@ export function RoomPage({ me }: { me: SessionUser }) {
               owner={currentEntry ? people[currentEntry.ownerId] : undefined}
             />
             <SeekBar
-              positionMs={positionMs}
+              positionAt={seekPosition}
+              moving={current?.status === "playing"}
               durationMs={currentEntry?.durationMs ?? 0}
               disabled={current === null}
               onSeek={(ms) =>
