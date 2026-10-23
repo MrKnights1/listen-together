@@ -355,6 +355,29 @@ describe("MaintainQueue", () => {
     });
   });
 
+  test("stops without saving when the server shut down while the catalog was answering", async () => {
+    source.link("x", [trackInfo("one"), trackInfo("two")]);
+    await addFromLink().execute("ada", "x", "song");
+    source.unplayable = ["youtube:two"];
+    let answer: () => void = () => undefined;
+    const answered = new Promise<void>((resolve) => (answer = resolve));
+    const maintain = source.maintain.bind(source);
+    source.maintain = async (ids) => {
+      await answered;
+      return maintain(ids);
+    };
+
+    const pass = new MaintainQueue(engine, source, activity, clock).execute();
+    await engine.suspend();
+    const savesAtShutdown = rooms.saves;
+    answer();
+
+    expect((await pass).removed).toBe(0);
+    expect(rooms.saves).toBe(savesAtShutdown);
+    expect(rooms.stored?.cleanShutdown).toBe(true);
+    expect(Object.keys(rooms.stored?.state.entries ?? {})).toHaveLength(2);
+  });
+
   test("trims the activity feed to 30 days", async () => {
     await activity.record({
       at: NOW - ACTIVITY_RETENTION_MS - 1,

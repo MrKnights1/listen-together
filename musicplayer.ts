@@ -168,7 +168,6 @@ const roomMaintenance = new RecurringJob(
   () => maintainQueue.execute(),
   timers,
 );
-await roomMaintenance.start();
 
 const describePeople = new DescribePeople(new IdentityPeopleDirectory(new FindUsers(users)));
 const roomSockets = new RoomSockets({
@@ -208,6 +207,9 @@ const server = Bun.serve({
 });
 
 console.log(`musicplayer listening on http://${server.hostname}:${server.port}`);
+
+// Only once serving: a pass may wait on YouTube, and the deploy's health check must not.
+void roomMaintenance.start();
 
 let shuttingDown = false;
 

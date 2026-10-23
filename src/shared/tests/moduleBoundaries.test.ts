@@ -425,6 +425,17 @@ describe("the composition root", () => {
     expect(suspendsRoom).toBeLessThan(closesDatabase);
   });
 
+  /** Started before serving, a pass waiting on YouTube keeps /api/health down and fails the deploy. */
+  test("starts the room's maintenance only once it is serving, without waiting for it", () => {
+    const root = compositionRootCode();
+    const serves = root.indexOf("Bun.serve(");
+    const maintains = root.indexOf("roomMaintenance.start(");
+
+    expect([serves, maintains]).not.toContain(-1);
+    expect(serves).toBeLessThan(maintains);
+    expect(root).not.toContain("await roomMaintenance.start(");
+  });
+
   test("is the only thing outside the kernel and modules that wires adapters to ports", () => {
     const found = FILES.filter(
       (file) => !file.path.startsWith("modules/") && !file.path.startsWith("shared/"),

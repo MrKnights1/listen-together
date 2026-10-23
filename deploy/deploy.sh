@@ -123,7 +123,8 @@ smoke() {
 }
 
 if release && smoke; then
-  # Housekeeping runs at start: expired sessions, unused old tracks and month-old feed lines go.
+  # Expired sessions are purged before the server answers; old tracks and month-old feed lines
+  # go in a pass that starts with it and may still be running.
   echo "=== row counts after ==="
   row_counts
   echo "deployed: $(git log --oneline -1)"
