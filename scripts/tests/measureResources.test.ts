@@ -1,8 +1,38 @@
 import { describe, expect, test } from "bun:test";
 import {
+  FindTracks,
+  MaintainTrackCache,
+  ResolveTrackUrl,
+  SqliteTrackRepository,
+  YouTubeTrackResolver,
+} from "@/modules/catalog/index.ts";
+import {
+  CatalogTrackSource,
+  MAX_ROOM_ENTRIES,
+  MaintainQueue,
+  MathRandom,
+  RestoreRoom,
+  RoomEngine,
+  SqliteActivityRepository,
+  SqliteRoomRepository,
+} from "@/modules/room/index.ts";
+import type { Timers } from "@/shared/domain/Timers.ts";
+import { openDatabase } from "@/shared/infrastructure/database.ts";
+import { migrate } from "@/shared/infrastructure/migrator.ts";
+import { SystemClock } from "@/shared/infrastructure/SystemClock.ts";
+import {
+  commandFor,
   cpuTicks,
+  FULL_ROOM_IDS,
+  PLACEHOLDER_YOUTUBE_KEY,
   rssByMinute,
   rssBytes,
+  scenariosFor,
+  seedFullRoom,
+  seedPeople,
+  seedSongs,
+  serverProcess,
+  SONG_IDS,
   summarize,
   TARGETS,
   verdicts,
@@ -97,5 +127,131 @@ describe("rssByMinute", () => {
     const run = samples(150, (index) => (index < 60 ? 40 : 46), 0);
 
     expect(rssByMinute(run)).toEqual([40, 46]);
+  });
+});
+
+describe("measuring never spends YouTube quota", () => {
+  const developer = {
+    PATH: "/usr/bin",
+    HOME: "/root",
+    YOUTUBE_API_KEY: "AIzaSyD-a-real-looking-key-0123456789abc",
+    DISCORD_CLIENT_SECRET: "a-real-looking-discord-secret",
+    DATABASE_PATH: "/root/musicplayer/data/musicplayer.db",
+  };
+
+  test("the server reads no .env file", () => {
+    const { cmd } = serverProcess("/tmp/measure.db", developer);
+
+    expect(cmd).toContain("--no-env-file");
+    expect(cmd.indexOf("--no-env-file")).toBeLessThan(cmd.indexOf("musicplayer.ts"));
+  });
+
+  test("the server's environment is built from constants: nothing of the developer's gets through but PATH", () => {
+    const { env } = serverProcess("/tmp/measure.db", developer);
+
+    expect(Object.keys(env).sort()).toEqual(
+      [
+        "APP_ENV",
+        "APP_URL",
+        "DATABASE_PATH",
+        "DISCORD_ALLOWED_USER_IDS",
+        "DISCORD_CLIENT_ID",
+        "DISCORD_CLIENT_SECRET",
+        "DISCORD_REDIRECT_URI",
+        "HOST",
+        "PATH",
+        "PORT",
+        "YOUTUBE_API_KEY",
+        "YOUTUBE_REGION_CODE",
+      ].sort(),
+    );
+    expect(env["YOUTUBE_API_KEY"]).toBe(PLACEHOLDER_YOUTUBE_KEY);
+    expect(env["DATABASE_PATH"]).toBe("/tmp/measure.db");
+    expect(env["PATH"]).toBe("/usr/bin");
+    for (const secret of [developer.YOUTUBE_API_KEY, developer.DISCORD_CLIENT_SECRET]) {
+      expect(Object.values(env)).not.toContain(secret);
+    }
+  });
+
+  test("a listener never pastes a playlist, and only adds songs that are seeded", () => {
+    const seeded = new Set(SONG_IDS.map((id) => `https://youtu.be/${id}`));
+    const states = [
+      null,
+      { entryId: "e1", status: "playing" as const },
+      { entryId: "e1", status: "paused" as const },
+    ];
+    for (let sent = 1; sent <= 1000; sent += 1) {
+      for (const offset of [0, 1, 2]) {
+        for (const current of states) {
+          const op = commandFor(sent, offset, current);
+          if (op.type !== "add") continue;
+          expect(op.scope).toBe("song");
+          expect(seeded.has(op.url)).toBe(true);
+        }
+      }
+    }
+  });
+
+  test("booting into the full room, and every add a listener makes, ask YouTube nothing", async () => {
+    const db = openDatabase(":memory:");
+    migrate(db);
+    const now = Date.now();
+    seedPeople(db, now);
+    seedSongs(db, SONG_IDS, now);
+    await seedFullRoom(db, now);
+
+    const calls: string[] = [];
+    const youtube: ConstructorParameters<typeof YouTubeTrackResolver>[0] = {
+      videos: async (ids) => {
+        calls.push(`videos ${ids.length}`);
+        return [];
+      },
+      playlistPages: (playlistId) => {
+        calls.push(`playlist ${playlistId}`);
+        return (async function* () {})();
+      },
+    };
+    const clock = new SystemClock();
+    const tracks = new SqliteTrackRepository(db);
+    const resolver = new YouTubeTrackResolver(youtube, tracks, clock, {
+      regionCode: "EE",
+      maxPlaylistItems: MAX_ROOM_ENTRIES,
+      cacheTtlMs: 30 * 24 * 60 * 60 * 1000,
+    });
+    const source = new CatalogTrackSource({
+      resolveTrackUrl: new ResolveTrackUrl([resolver]),
+      findTracks: new FindTracks(tracks),
+      maintainTrackCache: new MaintainTrackCache([resolver], tracks, clock),
+    });
+    const noTimers: Timers = { every: () => () => undefined, after: () => () => undefined };
+    const rooms = new SqliteRoomRepository(db);
+    const activity = new SqliteActivityRepository(db);
+    const engine = new RoomEngine({
+      rooms,
+      activity,
+      clock,
+      timers: noTimers,
+      random: new MathRandom(),
+    });
+
+    await new RestoreRoom(rooms, source, engine, clock).execute();
+    const maintained = await new MaintainQueue(engine, source, activity, clock).execute();
+    for (const id of SONG_IDS) await source.resolve(`https://youtu.be/${id}`, "song");
+
+    expect(calls).toEqual([]);
+    expect(Object.keys(engine.snapshot().state.entries)).toHaveLength(FULL_ROOM_IDS.length);
+    expect(maintained.removed).toBe(0);
+    db.close();
+  });
+});
+
+describe("scenariosFor", () => {
+  test("runs both scenarios unless asked for one", () => {
+    expect(scenariosFor(undefined).map((scenario) => scenario.name)).toEqual(["base", "full"]);
+    expect(scenariosFor("full").map((scenario) => scenario.name)).toEqual(["full"]);
+  });
+
+  test("refuses a scenario it does not know", () => {
+    expect(() => scenariosFor("huge")).toThrow("Unknown scenario");
   });
 });
